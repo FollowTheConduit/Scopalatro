@@ -20,30 +20,32 @@ using namespace Engine::Core;
 using namespace Engine::Module;
 //using namespace Engine::Data;
 
+// TODO: shortcut types -> String should be const &
+//using String = std::string const &;
 
-class RenderableAccessor : public Renderable {
+class Sprite3D : public Renderable {
 public:
-	void SetRendererR (IRenderer & renderer)    { SetRenderer (renderer); }
-	void SetModelR    (const HandleID & model)  { SetModel (model); };
-	void SetShaderR   (const HandleID & shader) { SetShader (shader); };
+	Sprite3D (IRenderer & renderer) {
+		SetRenderer (renderer);
 
-	void Translate (glm::vec3 pos) {
-		GetModel ().Translate (pos);
-		GetRenderer ().UpdateModelTransform (GetModel ());
+
+		auto * _assetManager = AssetManager::GetInstance ();
+		SetModel (_assetManager->GetQuadModelID ());
 	}
 
-	void Rotate (glm::vec3 rot) {
-		GetModel ().Rotate (rot);
-		GetRenderer ().UpdateModelTransform (GetModel ());
-	}
-
-	void Scale (glm::vec3 scale) {
-		GetModel ().Scale (scale);
-		GetRenderer ().UpdateModelTransform (GetModel ());
+	Sprite3D (IRenderer & renderer, const HandleID & texture) {
+		SetRenderer (renderer);
+		
+		auto * _assetManager = AssetManager::GetInstance ();
+		SetModel (_assetManager->GetQuadModelID ());
+		GetModel ().meshes[0].material.SetTexture (texture);
 	}
 };
 
+
 int main () {
+
+	// TODO : add this to the engine
 	#ifdef __linux__
 	glfwInitHint (GLFW_PLATFORM, GLFW_PLATFORM_X11);
 	#endif
@@ -82,74 +84,41 @@ int main () {
 
 	stbi_set_flip_vertically_on_load(0);
 
-	cout << "Hello World !\n";
-
-	InstanceRenderer renderer {800, 800};
-
 	AssetManager * am = AssetManager::GetInstance ();
 
-
-	HandleID default_shader = am->LoadShader ("default", "data/assets/shaders/default.vertex", "data/assets/shaders/default.fragment");
-	
-	std::vector<RenderableAccessor> models;
-	for (const auto & url : {"data/assets/models/columbina/scene.gltf"}) {
-		std::cout << url << "\n";
-		for (int j = 0; j < 4; ++j) {
-			RenderableAccessor _temp;
-			_temp.SetRendererR (renderer);
-			_temp.SetModelR (am->LoadModel (url, url));
-			_temp.SetShaderR (default_shader);
-
-			models.push_back (_temp);
-		}
-	}
-
-	models[1].Translate ({1.0, 0.0, 0.0});
-	models[2].Translate ({0.0, 2.0, 0.0});
-	models[3].Translate ({0.0, 0.0, 1.0});
-	
-	HandleID edge = am->LoadShader ("edge", "data/assets/shaders/blit_quad.vertex", "data/assets/shaders/edge.postprocess.fragment");
-	//HandleID gray    = am->LoadShader ("gray", "data/assets/shaders/blit_quad.vertex", "data/assets/shaders/grayscale.postprocess.fragment");
-	HandleID bnw     = am->LoadShader ("bnw", "data/assets/shaders/blit_quad.vertex", "data/assets/shaders/black_and_white.postprocess.fragment");
-	HandleID inverse = am->LoadShader ("inverse", "data/assets/shaders/blit_quad.vertex", "data/assets/shaders/inverse.postprocess.fragment");
-	//HandleID render_input_test = am->LoadShader ("rit", "data/assets/shaders/blit_quad.vertex", "data/assets/shaders/test.postprocess.fragment");
+	InstanceRenderer renderer {800, 800};
 	Camera cam;
 
-	//renderer.AddPostProcessingEffect ("gray",	gray);
-	//renderer.AddPostProcessingEffect ("edge",	edge);
-	//renderer.AddPostProcessingEffect ("bnw",	bnw);
-	//renderer.AddPostProcessingEffect ("inverse",	inverse);
+	HandleID _defaultShader = am->LoadShader ("default", "data/assets/shaders/default.vertex", "data/assets/shaders/default.fragment");
+	HandleID badalisc_tex = am->LoadTexture ("badalisc", "data/assets/textures/badalisc_placeholder.png");
 
-	//glm::vec3 color = {1.0f, 0.f, 0.f};
+	HandleID deny_ace = am->LoadTexture ("deny_ace", "data/assets/textures/card_deny_ace.png");
+	HandleID deny_four = am->LoadTexture ("deny_4", "data/assets/textures/card_deny_4.png");
 
+	Sprite3D sprite {renderer, deny_four};
+	sprite.SetShader (_defaultShader);
+	
+	// mouse stuff
+	// TODO: add to engine
 	double SENSITIVITY = 0.25f;
 	double mouse_x = 0.0;
 	double mouse_y = 0.0;
 	double last_x = 0.0;
 	double last_y = 0.0;
 	
+	// mesuring stuff + FPS
+	long long unsigned int c = 0;
 	double lastRenderTime	= 0.0;
 	double lastTime		= 0.0;
 	double currentTime	= lastRenderTime;
 	double deltaTime	= 0.0;
-	
 	double targetFPS = 144.0;
 	double targetFrameTime = 1.0 / targetFPS;
 
-
-	//ShaderInputs inputs;
-	//inputs.AddInput<glm::vec3> ("uColor", [&color] () -> const glm::vec3 & { return (color); });
-	//renderer.AddPostProcessingEffect ("rit", render_input_test, 1, std::move (inputs));
-
-	long long unsigned int c = 0;
-
+	// TODO-make : add render loop to engine
 	while (!glfwWindowShouldClose (window)) {
 		currentTime = glfwGetTime ();
 		deltaTime = currentTime - lastTime;
-
-		models[2].Rotate ({deltaTime * 100, 0.0, 0.0});
-		models[3].Rotate ({0.0, deltaTime * 100, 0.0});
-		models[1].Rotate ({0.0, 0.0, deltaTime * 100});
 
 		glfwGetCursorPos (window, &mouse_x, &mouse_y);
 		cam.rotate ({(mouse_x - last_x) * SENSITIVITY, (mouse_y - last_y) * -SENSITIVITY, 0.0});
@@ -197,14 +166,14 @@ int main () {
 			continue;
 		}
 
-		clock_t renderingModelsDelta = std::clock ();
-		for (auto & model : models) {
-			model.Render ();
-		}
-		renderingModelsDelta = std::clock () - renderingModelsDelta;
-		if (c % 100 == 0) std::cout << "Model draw call took " << renderingModelsDelta << "ms\n";
+		//clock_t renderingModelsDelta = std::clock ();
+		
+		// Render here :
+		sprite.Render ();
+
+		//renderingModelsDelta = std::clock () - renderingModelsDelta;
+		//if (c % 100 == 0) std::cout << "Model draw call took " << renderingModelsDelta << "ms\n";
 		++c;
-		//printf ("Currently Rendering\n");
 		renderer.Render (&cam);
 
 		glfwSwapBuffers(window);

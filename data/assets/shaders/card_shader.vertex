@@ -1,0 +1,57 @@
+#version 460 core
+layout (location = 0) in vec3 aPos;
+layout (location = 1) in vec3 aNormals;
+layout (location = 2) in vec3 aTangeants;
+layout (location = 3) in vec2 aTexCoords;
+
+struct TextureOffsetHandle {
+    float texture_index;
+    float texture_count;
+};
+
+struct InstanceData {
+	mat4 matrices;
+	vec3 color;
+    
+    TextureOffsetHandle diffuse;
+};
+
+struct TextureOffset {
+    vec2 offset;
+    vec2 scale;
+    float depth;
+};
+
+struct Offset {
+    TextureOffset diffuseOffset; // Useful if more than diffuse (specular, etc...)
+}
+
+layout(std430, binding = 0) readonly buffer Instances {
+	InstanceData instances[];
+};
+
+layout(std430, binding = 1) readonly buffer TextureOffsets {
+    Offset offsets[];
+}
+
+uniform mat4 uProjection;
+uniform mat4 uView;
+
+out vec3 vNormals;
+out vec2 vTexCoords;
+out vec3 vColor;
+
+out int vInstanceID;
+
+void main() {
+	vec4 pos = uProjection * uView * instances[gl_BaseInstance + gl_InstanceID].matrices * vec4(aPos, 1.0);
+	gl_Position = pos;
+
+	vNormals = aNormals;
+	vColor = instances[gl_BaseInstance + gl_InstanceID].color;
+	vInstanceID = gl_InstanceID + gl_BaseInstance;
+
+
+
+	vTexCoords = aTexCoords * instances[gl_BaseInstance + gl_InstanceID].coords.zw + instances[gl_BaseInstance + gl_InstanceID].coords.xy;
+};

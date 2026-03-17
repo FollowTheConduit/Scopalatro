@@ -1,7 +1,7 @@
 
 CXX      := g++
 CXXFLAGS := -std=c++23 -Wall -Wextra -Idependencies/TLOT/vendor -Idependencies/TLOT/vendor/glad/include -Idependencies/TLOT/include -Iinclude
-CXXFLAGS += -O3
+CXXFLAGS += -O0 -g
 
 BIN_WINDOWS := bin/scopalatro.exe
 LIBS_WINDOWS:= -lteto -lassimp -lglfw3 -lgdi32 -lopengl32
@@ -35,7 +35,7 @@ $(BIN) : $(OBJ)
 clean:
 ifeq ($(OS), Windows_NT)
 # kindof broken but fuck cmd.exe
-	del /q /s src\*.o *.o $(BIN_WINDOWS)
+	del /q /s src\*.o scopalatro.exe
 else
 	rm -rf $(OBJ) $(BIN)
 endif
