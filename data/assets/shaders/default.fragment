@@ -2,15 +2,48 @@
 
 in vec3 vNormals;
 in vec2 vTexCoords;
-in vec3 vColor;
+//in vec2 vBackTexCoords;
+//in vec2 vSymbTexCoords;
 in flat int vInstanceID;
+
+struct InstanceData
+{
+	mat4 matrix;
+	vec3 color;
+	int textureOffset;
+	int textureCount;
+};
+
+flat in InstanceData vData;
 
 out vec4 FragColor;
 
 uniform sampler2DArray uAtlas;
 
-void main() {
+struct TextureOffset {
+    vec2 pos;
+	vec2 scale;
+	float depth;
+};
 
-	vec4 tex = texture(uAtlas, vec3(vTexCoords, 0.0));
-	FragColor = tex * vec4 (vColor, 1.0);
+layout(std430, binding = 2) readonly buffer TextureOffsets {
+	TextureOffset offsets[];
+};
+
+void main() {
+	TextureOffset offset = offsets[vData.textureOffset];
+	vec2 texCoords = vTexCoords * offset.scale + offset.pos;
+
+	vec3 colorRGB = vec3 (1.0, 1.0, 1.0);
+	float colorAlpha = 0.0;
+	vec4 tex = vec4 (1.0);
+
+	for (int i = 0; i < vData.textureCount; ++i)
+	{
+		tex = texture (uAtlas, vec3 (texCoords, 0.0));
+		colorRGB = mix (colorRGB, tex.rgb, tex.a);
+		colorAlpha = max (colorAlpha, tex.a);
+	}
+
+	FragColor = vec4 (colorRGB, colorAlpha);
 };

@@ -1,0 +1,5 @@
+*.o
+bin/
+*.a
+*.exe
+.vscode/

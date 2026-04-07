@@ -1,16 +1,16 @@
 
 CXX      := g++
-CXXFLAGS := -std=c++23 -Wall -Wextra -Idependencies/TLOT/vendor -Idependencies/TLOT/vendor/glad/include -Idependencies/TLOT/include -Iinclude
+CXXFLAGS := -std=c++23 -Wall -Wextra -Ideps/TLOT/deps -Ideps/TLOT/deps/glad/include -Ideps/TLOT/include -Iinclude
 CXXFLAGS += -O0 -g
 
 BIN_WINDOWS := bin/scopalatro.exe
-LIBS_WINDOWS:= -lteto -lassimp -lglfw3 -lgdi32 -lopengl32
+LIBS_WINDOWS:= -ltetoEngine -lglfw3 -lgdi32 -lopengl32 -lstdc++exp
 
 
 SRC := $(wildcard src/*.cpp)
 
 ifeq ($(OS), Windows_NT)
-LIBDIRS	:= -Ldependencies/TLOT/libs/windows/glfw3 -Ldependencies/TLOT/libs/windows/assimp -Ldependencies/TLOT/bin/lib 
+LIBDIRS	:= -Ldeps/TLOT/libs/windows/glfw3 -Ldeps/TLOT/bin/lib
 LIBS	:= $(LIBS_WINDOWS)
 BIN	    := $(BIN_WINDOWS)
 else
@@ -34,7 +34,6 @@ $(BIN) : $(OBJ)
 
 clean:
 ifeq ($(OS), Windows_NT)
-# kindof broken but fuck cmd.exe
 	del /q /s src\*.o scopalatro.exe
 else
 	rm -rf $(OBJ) $(BIN)
