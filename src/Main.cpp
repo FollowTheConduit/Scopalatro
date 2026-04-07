@@ -43,6 +43,7 @@ int main ()
 		CardManager cardManager {rManager};
 
 		cardManager.Create (CardColor::Deny, CardSymbol::Ace);
+		//cardManager.Create (CardColor::Deny, CardSymbol::Seven);
 
 		ResourceHandle shaderHandle = assetManager.LoadShader ("default", "data/assets/shaders/default.vertex", "data/assets/shaders/default.fragment");
 		Shader const & shader = assetManager.GetShader (shaderHandle);
@@ -102,6 +103,6 @@ int main ()
 
 		Game game;
 		game.run();
-		
+
 	#endif
 }

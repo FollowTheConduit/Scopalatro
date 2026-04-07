@@ -24,6 +24,8 @@ struct TextureOffset {
     vec2 pos;
 	vec2 scale;
 	float depth;
+	float _pad0;
+	float _pad1;
 };
 
 layout(std430, binding = 2) readonly buffer TextureOffsets {
@@ -31,8 +33,6 @@ layout(std430, binding = 2) readonly buffer TextureOffsets {
 };
 
 void main() {
-	TextureOffset offset = offsets[vData.textureOffset];
-	vec2 texCoords = vTexCoords * offset.scale + offset.pos;
 
 	vec3 colorRGB = vec3 (1.0, 1.0, 1.0);
 	float colorAlpha = 0.0;
@@ -40,7 +40,11 @@ void main() {
 
 	for (int i = 0; i < vData.textureCount; ++i)
 	{
+		TextureOffset offset = offsets[vData.textureOffset + i];
+		vec2 texCoords = vTexCoords * offset.scale + offset.pos;
+
 		tex = texture (uAtlas, vec3 (texCoords, 0.0));
+
 		colorRGB = mix (colorRGB, tex.rgb, tex.a);
 		colorAlpha = max (colorAlpha, tex.a);
 	}
