@@ -6,55 +6,33 @@
 #include "Entity.hpp"
 #include "ScopaDeck.hpp"
 
-class Card {
+class Card
+{
 public:
-    Card(std::string name, std::string desc, Suit s = Suit::Denari, CardValue v = CardValue::Asso) 
-        : name(name), description(desc), suit(s), value(v) {}
+	Card (std::string name, std::string desc, Suit s = Suit::Denari, CardValue v = CardValue::Asso);
 
-    
-    void addEffect(std::unique_ptr<Effect> effect) {
-        effects.push_back(std::move(effect));
-    }
+	
+	void AddEffect (Effect && effect);
+	void Play(Entity& source, std::vector<Entity*> targets);
 
-    void addEffect(Effect* effect) {
-        effects.push_back(std::unique_ptr<Effect>(effect));
-    }
+	bool HasEffects() const;
 
-    Suit getSuit() const { return suit; }
-    CardValue getValue() const { return value; }
-    int getNumericValue() const { return static_cast<int>(value); }
+	Suit      GetSuit () const;
+	CardValue GetValue () const;
+	int       GetNumericValue () const;
 
-    void play(Entity& source, std::vector<Entity*> targets) {
-        std::cout << "\n> Playing card: " << name << std::endl;
+	std::string GetName() const;
+	std::string GetDescription() const;
+	std::string GetEffectsSummary() const;
 
-        EffectContext ctx;
-        ctx.source = &source;
-        ctx.targets = targets;
-        ctx.cardSource = this;
-
-        for (auto& effect : effects) {
-            std::cout << " [Effect]: " << effect->getDescription() << std::endl;
-            effect->apply(ctx); 
-        }
-    }
-
-    std::string getName() const { return name; }
-    std::string getDescription() const { return description; } 
-    bool hasEffects() const { return !effects.empty(); }
-    std::string getEffectsSummary() const {
-        std::string result;
-        for (const auto& e : effects) {
-            if (!result.empty()) result += ", ";
-            result += e->getDescription();
-        }
-        return result;
-    }
 
 private:
-    std::string name;
-    std::string description;
-    Suit suit;
-    CardValue value;
-    std::vector<std::unique_ptr<Effect>> effects;
+	std::string name;
+	std::string description;
+
+	Suit suit;
+	CardValue value;
+
+	std::vector<Effect> effects;
 };
 

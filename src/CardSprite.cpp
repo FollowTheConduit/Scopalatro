@@ -28,6 +28,7 @@ CardSprite CardManager::Create (CardColor color, CardSymbol symbol)
 	Mesh quadMesh = m_renderableManager.GetAssetManager ().GetMesh (m_quadMesh);
 	quadMesh.material.color = glm::vec4 {1.0};
 	quadMesh.material.diffuseTextures = { m_backNormal, m_textures[symbol_key] };
+	//quadMesh.material.diffuseTextures = { m_backNormal };
 	
 	auto renderable = m_renderableManager.Create (quadMesh, Transform {});
 

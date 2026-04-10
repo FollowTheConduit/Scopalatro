@@ -2,8 +2,6 @@
 
 in vec3 vNormals;
 in vec2 vTexCoords;
-//in vec2 vBackTexCoords;
-//in vec2 vSymbTexCoords;
 in flat int vInstanceID;
 
 struct InstanceData
@@ -14,7 +12,9 @@ struct InstanceData
 	int textureCount;
 };
 
-flat in InstanceData vData;
+layout(std430, binding = 1) readonly buffer Instances {
+	InstanceData datas[];
+};
 
 out vec4 FragColor;
 
@@ -38,9 +38,11 @@ void main() {
 	float colorAlpha = 0.0;
 	vec4 tex = vec4 (1.0);
 
-	for (int i = 0; i < vData.textureCount; ++i)
+	InstanceData data = datas[vInstanceID];
+
+	for (int i = 0; i < data.textureCount; ++i)
 	{
-		TextureOffset offset = offsets[vData.textureOffset + i];
+		TextureOffset offset = offsets[data.textureOffset + i];
 		vec2 texCoords = vTexCoords * offset.scale + offset.pos;
 
 		tex = texture (uAtlas, vec3 (texCoords, 0.0));
