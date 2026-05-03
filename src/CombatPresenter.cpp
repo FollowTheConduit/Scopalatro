@@ -1,123 +1,116 @@
-#include <MVP/presenters/CombatPresenter.hpp>
+#include <Combat/CombatPresenter.hpp>
+
+using namespace TLOT;
+
+static inline Renderable CreateCardActor (Suit suit, CardValue value, Transform transform, RenderableManager & manager)
+{
+	auto & assetManager = manager.GetAssetManager ();
+
+	Mesh cardMesh = assetManager.GetMesh (assetManager.GetQuadMeshID ());
+	auto backTex = assetManager.GetTextureID ("card_back");
+
+	auto symbol_key = suitToString (suit) + "_" + valueToString (value);
+		
+	auto cardTex = assetManager.GetTextureID (symbol_key);
+
+	cardMesh.material.color = glm::vec4 {1.0};
+	cardMesh.material.diffuseTextures = { backTex, cardTex };
+
+	return manager.Create (cardMesh, transform);
+}
 
 CombatView * CombatPresenter::GetView ()
 {
 	return m_view.get ();
 }
 
-void CombatPresenter::NotifyPlayerHover ()
+void CombatPresenter::PreparePlayerTurn ()
 {
-	// nothing rn
+	m_model->ShuffleDeck ();
+	m_model->Draw (m_model->EffectiveHandSize ());
 }
 
-void CombatPresenter::NotifyPlayerPress ()
+CombatPresenter::CombatPresenter (TLOT::RenderContext & context, TLOT::Camera & camera, TLOT::RenderableManager & sceneManager, TLOT::RenderableManager & uiManager, CombatParams params)
 {
-	// nothing rn
+	ObjectID nextID = 0;
+
+	Renderer & uiRenderer = uiManager.GetRenderer ();
+	AssetManager & assetManager = uiManager.GetAssetManager ();
+
+	
+	for (auto & card : params.playerCards)
+	{
+		m_cardTable.emplace (nextID, card);
+		m_cardActorTable.emplace (nextID++, CreateCardActor (card->GetSuit (), card->GetValue (), Transform {}, uiManager));
+	}
+
+	m_model = std::make_unique<CombatModel> (this, m_cardTable);
+	m_view  = std::make_unique<CombatView>  (this, context, camera, sceneManager, uiManager, m_cardActorTable);
 }
 
-void CombatPresenter::NotifyItemHover ()
+void CombatPresenter::Begin ()
 {
-	// nothing rn
+	PreparePlayerTurn ();
 }
 
-void CombatPresenter::NotifyItemPress ()
+void CombatPresenter::OnCardHoverStart (ObjectID card)
 {
-	// nothing rn
-}
-
-void CombatPresenter::NotifyCardHover ()
-{
-	auto card = m_view->GetHoveredCard ();
 	auto description = m_model->GetCardDescription (card);
 
-	m_view->DisplayCardDescription (card, description, 0.5);
+	m_descriptions[card] = m_view->DisplayCardDescription (card, description, -1.0);
 }
 
-void CombatPresenter::NotifyCardPress ()
+void CombatPresenter::OnCardHoverStop (ObjectID card)
 {
-	// nothing
-}
+	auto displayEventPos = m_descriptions.find (card);
+	if (displayEventPos == m_descriptions.end ()) return;
 
-void CombatPresenter::NotifyCardDrop ()
-{
-	auto card = m_view->GetMovedCard ();
-
-	if (!m_model->CanCardCapture (card))
-	{
-		//TODO: get string from translation module
-		m_view->DisplayActionFailure ("Can't capture cards.");
-		return;
-	}
+	DisplayEventID descriptionDisplayID = displayEventPos->second;
 	
-	if (!m_model->ImplicitTargets (card))
-	{
-		m_cardTemp = card;
-		m_waitingForTarget = true;
-
-		if (m_model->GetSpellTarget (card) == TargetType::Self)
-		{
-			m_view->DisplayPlayerTargetSelector ();
-		}
-		else
-		{
-			m_view->DisplayEnemyTargetSelector ();
-		}
-
-		return;
-	}
-
-	m_model->ResolveSpell (card);
-	m_model->ResolveCapture (card);
-
-	if (m_model->IsExhaust (card))
-	{
-		m_view->ExhaustCard (card);
-	}
-	else
-	{
-		m_view->DiscardCard (card);
-	}
+	m_view->StopDisplayEvent (descriptionDisplayID);
 }
 
-void CombatPresenter::NotifyEnemyHover ()
+void CombatPresenter::OnCardPress (ObjectID card) {}
+
+void CombatPresenter::OnCardDrag (ObjectID card) {}
+void CombatPresenter::OnCardDrop (ObjectID card) {}
+
+void CombatPresenter::OnEnemyHover (ObjectID enemy) {}
+void CombatPresenter::OnEnemyPress (ObjectID enemy) {}
+
+void CombatPresenter::DebugDrawCard ()
 {
-	// nothing rn
+	m_model->Draw (1);
 }
 
-void CombatPresenter::NotifyEnemyPress ()
+void CombatPresenter::OnMessage (std::string const message)
 {
-	if (m_waitingForTarget && m_model->IsTargetValid (m_cardTemp))
-	{
-		auto enemy = m_view->GetPressedEnemy ();
-
-		m_model->ResolveSpell (m_cardTemp, enemy);
-		m_model->ResolveCapture (m_cardTemp);
-	}
+	Logger::log (LogLevel::Info, "Message : {}", message);
 }
 
-
-void CombatPresenter::GenerateActorsTable ()
+void CombatPresenter::OnDiscardToDrawPile (std::vector<ObjectID> cards)
 {
-	auto cards = m_model->GetCards ();
-	auto enemies = m_model->GetEnemies ();
 
-	ObjectID cardID = 0;
-	// TODO: Replace dummy constructor with a real one
-	std::map<ObjectID, CardActor> cardActors;
-	
-	for (auto const & card : cards)
-	{
-		cardActors.emplace (cardID++, card);
-	}
-
-
-	ObjectID enemyID = 0;
-	// TOTO: Same here
-	std::map<ObjectID, EnemyActor> enemyActors;
-	for (auto const & enemy : enemies)
-	{
-		enemyActors.emplace (enemyID, enemy);
-	}
-
-	m_view->SetActorsTable (cardActors, enemyActors);
 }
+
+void CombatPresenter::OnCardsDrawn (std::vector<ObjectID> cards)
+{
+	m_view->DrawCards (cards);
+}
+
+void CombatPresenter::OnCardsDiscarded (std::vector<ObjectID> cards)
+{
+	m_view->DiscardCards (cards);
+}
+
+void CombatPresenter::OnDamage ()
+{
+
+}
+
+void CombatPresenter::OnDeath ()
+{
+
+}
+
+

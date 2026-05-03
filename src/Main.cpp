@@ -7,7 +7,19 @@
 
 #ifdef SCOPALATRO
 
-#include <Scopalatro.hpp>
+
+
+#include <opengl/RenderContext.hpp>
+
+#include <modules/camera.hpp>
+#include <modules/DebugRenderer.hpp>
+
+#include <Combat/CombatPresenter.hpp>
+
+#include <core/InputManager.hpp>
+
+using namespace std;
+using namespace TLOT;
 
 #elif TEST_RENDERING
 
@@ -18,7 +30,7 @@
 
 #include <opengl/RenderContext.hpp>
 
-#include <modules/Camera.hpp>
+#include <modules/camera.hpp>
 #include <modules/Renderer.hpp>
 #include <modules/Renderable.hpp>
 
@@ -40,17 +52,175 @@ int main ()
 {
 	#ifdef SCOPALATRO
 
-	Scopalatro game {};
+	// Initialization
+	RenderContext rctx;
+
+	size_t width = 1280;
+	size_t height = 800;
+	rctx.Init (width, height, "Combat Test", false);
+
+	AssetManager assetManager;
+	Renderer sceneRenderer {width, height, ProjectionMode::Perspective};
+	Renderer uiRenderer    {width, height, ProjectionMode::Orthogonal};
+	DebugRenderer::Get().Init (width, height);
+
+
+	// Resources
+	RenderableManager sceneManager {assetManager, sceneRenderer};
+	RenderableManager uiManager    {assetManager, uiRenderer};
+
+	assetManager.LoadTexture ("card_back", "data/assets/textures/card_back_normal.png");
+	// {Suit::Bastoni, Suit::Coppe, Suit::Denari, Suit::Spada}
+	for (auto const & suit : { Suit::Denari })
+	{
+		for (auto const & value : { 
+			CardValue::Asso,    CardValue::Due,     CardValue::Tre,
+			CardValue::Quattro, CardValue::Cinque,  CardValue::Sei,
+			CardValue::Sette,   CardValue::Cavallo, CardValue::Fante,
+			CardValue::Re
+		})
+		{
+			std::string key = Card::GetKey (suit, value);
+			assetManager.LoadTexture (key, "data/assets/textures/card_" + key + ".png");
+		}
+	}
+	ResourceHandle shaderHandle = assetManager.LoadShader ("default", "data/assets/shaders/default.vertex", "data/assets/shaders/default.fragment");
+	Shader const & shader = assetManager.GetShader (shaderHandle); // def change that asap, thats ugly as hell
+
+	ResourceHandle uiShaderHandle = assetManager.LoadShader ("ui", "data/assets/shaders/ui.vertex", "data/assets/shaders/default.fragment");
+	Shader const & uiShader = assetManager.GetShader (uiShaderHandle); // def change that asap, thats ugly as hell
+	
+
+	// Card Creation
+
+	Camera camera;
+
+	std::unique_ptr<Card> dummy = std::make_unique<Card> ("Dummy Card", "If you see this, there is a bug.");
+	std::vector<std::unique_ptr<Card>> deck;
+
+	for (auto const & suit : {Suit::Denari})
+	{
+		for (auto const & value : { 
+			CardValue::Asso,    CardValue::Due,     CardValue::Tre,
+			CardValue::Quattro, CardValue::Cinque,  CardValue::Sei,
+			CardValue::Sette,   CardValue::Cavallo, CardValue::Fante,
+			CardValue::Re
+		})
+		{
+			deck.push_back (std::move (std::make_unique<Card> ("name", "description", suit, value)));
+		}
+	}
+
+	// Combat Initialization
+
+	CombatParams combatParams;
+	combatParams.enemies = {};
+	combatParams.playerHP = 50.0;
+	combatParams.playerMaxHP = 50.0;
+	combatParams.playerItems = 0; // TODO: placeholder
+
+	// deck creation
+	for (auto const & card : deck)
+	{
+		combatParams.playerCards.emplace (card.get ());
+	}
+
+	CombatPresenter combat {rctx, camera, sceneManager, uiManager, combatParams};
+	CombatView * view = combat.GetView ();
+
+	camera.rotation.x = 90.0;
+	camera.rotation.y = 0.0;
+
+	combat.Begin ();
+
+
+	// game loop stuff
+	static float const SENSITIVITY = 0.25f;
+
+	bool DEBUG_MODE = false;
+	rctx.HideMouse (false);
+
+	// logic setup
+	rctx.SetUpdateLoop ([&](RenderContext::Context const & ctx) {
+		view->Update (ctx, camera);
+
+		double deltaX = ctx.mouseX - ctx.lastMouseX;
+		double deltaY = ctx.mouseY - ctx.lastMouseY;
+
+		if (InputManager::getInstance ().isKeyPressed (GLFW_KEY_O)) {
+			DEBUG_MODE = !DEBUG_MODE;
+			DebugRenderer::Get ().SetActive (DEBUG_MODE);
+			//ctx.HideMouse (DEBUG_MODE);
+			//deltaX = 0.0;
+			//deltaY = 0.0;
+		}
+
+		if (InputManager::getInstance ().isKeyPressed (GLFW_KEY_ESCAPE)) {
+			glfwSetWindowShouldClose (ctx.window, true);
+		}
+
+		//if (!DEBUG_MODE) return;
+		//camera.rotate ({deltaX * SENSITIVITY, deltaY * -SENSITIVITY, 0.0});
+//
+		//if (glfwGetKey (ctx.window, GLFW_KEY_W) == GLFW_PRESS) {
+		//	camera.move_forward (ctx.deltaTime);
+		//}
+//
+		//if (glfwGetKey (ctx.window, GLFW_KEY_S) == GLFW_PRESS) {
+		//	camera.move_backward (ctx.deltaTime);
+		//}
+//
+		//if (glfwGetKey (ctx.window, GLFW_KEY_A) == GLFW_PRESS) {
+		//	camera.move_left (ctx.deltaTime);
+		//}
+//
+		//if (glfwGetKey (ctx.window, GLFW_KEY_D) == GLFW_PRESS) {
+		//	camera.move_right (ctx.deltaTime);
+		//}
+//
+		//if (glfwGetKey (ctx.window, GLFW_KEY_E) == GLFW_PRESS) {
+		//	camera.move_up (ctx.deltaTime);
+		//}
+//
+		//if (glfwGetKey (ctx.window, GLFW_KEY_Q) == GLFW_PRESS) {
+		//	camera.move_down (ctx.deltaTime);
+		//}
+//
+		//if (glfwGetKey (ctx.window, GLFW_KEY_P) == GLFW_PRESS) {
+		//	camera.rotation.x = 90.0;
+		//	camera.rotation.y = 10.0;
+		//}
+	});
+
+
+	rctx.SetRenderLoop ([&] (TLOT::RenderContext::Context const & ctx) {
+		// TODO: a renderable should have a shader to pass to the renderer
+		// TODO: a shader should not be an asset
+		// The assetManager should load "ShaderSource"
+		// and the renderer should create the "Shader"
+		// by combining multiple "ShaderSource"s
+		//sceneRenderer.Render (shader, camera);
+		uiRenderer.Render (uiShader, camera);
+
+		DebugRenderer::Get ().Render ();
+
+		// somehow the Syntax will kinda look like that
+		//frame = transparentObjectRenderer.RenderTo ();
+		//baseObjectRenderer.RenderFromTo (frame, compositor);
+		//compositor.ApplyAllPostProcess ();
+	});
+
+	rctx.Loop ();
 
 	#elif TEST_RENDERING
 
-	RenderContext context {800, 800, "Scopalatro"};
+	RenderContext ctx {800, 800, "Scopalatro"};
 
 	AssetManager assetManager;
 	Renderer renderer;
 
 	RenderableManager rManager {assetManager, renderer};
-	Camera camera;
+	camera camera;
 	
 	CardManager cardManager {rManager};
 
@@ -75,51 +245,51 @@ int main ()
 
 	static float const SENSITIVITY = 0.25f;
 
-	context.SetUpdateLoop ([&](RenderContext::Context const & context) {
-		double deltaX = context.mouseX - context.lastMouseX;
-		double deltaY = context.mouseY - context.lastMouseY;
+	ctx.SetUpdateLoop ([&](RenderContext::Context const & ctx) {
+		double deltaX = ctx.mouseX - ctx.lastMouseX;
+		double deltaY = ctx.mouseY - ctx.lastMouseY;
 
 		camera.rotate ({deltaX * SENSITIVITY, deltaY * -SENSITIVITY, 0.0});
 
-		if (glfwGetKey (context.window, GLFW_KEY_W) == GLFW_PRESS) {
-			camera.move_forward (context.deltaTime);
+		if (glfwGetKey (ctx.window, GLFW_KEY_W) == GLFW_PRESS) {
+			camera.move_forward (ctx.deltaTime);
 		}
 
-		if (glfwGetKey (context.window, GLFW_KEY_S) == GLFW_PRESS) {
-			camera.move_backward (context.deltaTime);
+		if (glfwGetKey (ctx.window, GLFW_KEY_S) == GLFW_PRESS) {
+			camera.move_backward (ctx.deltaTime);
 		}
 
-		if (glfwGetKey (context.window, GLFW_KEY_A) == GLFW_PRESS) {
-			camera.move_left (context.deltaTime);
+		if (glfwGetKey (ctx.window, GLFW_KEY_A) == GLFW_PRESS) {
+			camera.move_left (ctx.deltaTime);
 		}
 
-		if (glfwGetKey (context.window, GLFW_KEY_D) == GLFW_PRESS) {
-			camera.move_right (context.deltaTime);
+		if (glfwGetKey (ctx.window, GLFW_KEY_D) == GLFW_PRESS) {
+			camera.move_right (ctx.deltaTime);
 		}
 
-		if (glfwGetKey (context.window, GLFW_KEY_E) == GLFW_PRESS) {
-			camera.move_up (context.deltaTime);
+		if (glfwGetKey (ctx.window, GLFW_KEY_E) == GLFW_PRESS) {
+			camera.move_up (ctx.deltaTime);
 		}
 
-		if (glfwGetKey (context.window, GLFW_KEY_Q) == GLFW_PRESS) {
-			camera.move_down (context.deltaTime);
+		if (glfwGetKey (ctx.window, GLFW_KEY_Q) == GLFW_PRESS) {
+			camera.move_down (ctx.deltaTime);
 		}
 
-		if (glfwGetKey (context.window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
-			glfwSetWindowShouldClose (context.window, true);
+		if (glfwGetKey (ctx.window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
+			glfwSetWindowShouldClose (ctx.window, true);
 		}
 
-		if (glfwGetKey (context.window, GLFW_KEY_P) == GLFW_PRESS) {
+		if (glfwGetKey (ctx.window, GLFW_KEY_P) == GLFW_PRESS) {
 			camera.rotation.x = 90.0;
 			camera.rotation.y = 10.0;
 		}
 	});
 
-	context.SetRenderLoop ([&](RenderContext::Context const & context) {
+	ctx.SetRenderLoop ([&](RenderContext::Context const & ctx) {
 		renderer.Render (shader, camera);
 	});
 
-	context.Loop ();
+	ctx.Loop ();
 
 	return 0;
 

@@ -51,5 +51,10 @@ void main() {
 		colorAlpha = max (colorAlpha, tex.a);
 	}
 
+	if (colorAlpha <= 0.0)
+	{
+		discard;
+	}
+
 	FragColor = vec4 (colorRGB, colorAlpha);
 };

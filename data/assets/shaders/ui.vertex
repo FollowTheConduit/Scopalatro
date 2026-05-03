@@ -1,0 +1,52 @@
+#version 460 core
+layout (location = 0) in vec3 aPos;
+layout (location = 1) in vec3 aNormals;
+layout (location = 2) in vec3 aTangeants;
+layout (location = 3) in vec2 aTexCoords;
+
+struct InstanceData {
+	mat4 matrix;
+	vec3 color;
+	int textureOffset;
+	int textureCount;
+};
+
+
+layout(std430, binding = 0) readonly buffer InstanceIndex {
+	int indices[];
+};
+
+layout(std430, binding = 1) readonly buffer Instances {
+	InstanceData datas[];
+};
+
+int getIndex ()
+{
+    return indices[gl_BaseInstance + gl_InstanceID];
+}
+
+InstanceData getData ()
+{
+    int index = getIndex ();
+    return datas[index];
+}
+
+uniform mat4 uProjection;
+
+out vec3 vNormals;
+out vec2 vTexCoords;
+out vec3 vColor;
+
+out int vInstanceID;
+
+void main()
+{
+	vNormals = aNormals;
+
+    InstanceData data = getData ();
+	vec4 pos = uProjection * data.matrix * vec4(aPos, 1.0);
+	vInstanceID = getIndex ();
+	vTexCoords = aTexCoords;
+
+	gl_Position = pos;
+};

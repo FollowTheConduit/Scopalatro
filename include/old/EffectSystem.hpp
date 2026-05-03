@@ -40,7 +40,7 @@ protected:
 public:
     Effect(TargetType target = TargetType::Enemy) : targetType(target) {}
     virtual ~Effect() = default;
-
+	Effect (Effect && effect) = default;
     virtual void apply(EffectContext& ctx) = 0;
     virtual std::string getDescription() const = 0;
     virtual std::unique_ptr<Effect> clone() const = 0;

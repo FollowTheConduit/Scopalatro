@@ -77,7 +77,7 @@ void Game::run() {
 void Game::drawPhase() {
     while (hand.size() < 3 && !deck.isEmpty()) {
         auto card = deck.draw();
-        std::cout << "Drew: " << card->getName() << std::endl;
+        std::cout << "Drew: " << card->GetName() << std::endl;
         hand.push_back(std::move(card));
     }
 }
@@ -86,13 +86,13 @@ void Game::displayState() const {
     std::cout << "\n[TABLE]: ";
     if (table.empty()) std::cout << "(Empty)";
     for (const auto& c : table)
-        std::cout << "[" << c->getName() << "(" << c->getNumericValue() << ")] ";
+        std::cout << "[" << c->GetName() << "(" << c->GetNumericValue() << ")] ";
     std::cout << std::endl;
 
     std::cout << "[HAND]: ";
     for (const auto& c : hand) {
-        std::cout << "[" << c->getName() << "(" << c->getNumericValue() << ")";
-        if (c->hasEffects()) std::cout << " | " << c->getEffectsSummary();
+        std::cout << "[" << c->GetName() << "(" << c->GetNumericValue() << ")";
+        if (c->HasEffects()) std::cout << " | " << c->GetEffectsSummary();
         std::cout << "] ";
     }
     std::cout << "\n" << std::endl; 
@@ -130,9 +130,9 @@ void Game::resolvePlay(int cardIdx) {
     std::vector<Entity*> targets = { &enemy };
 
     std::cout << "[PLAYER] " << player.getName()
-              << " plays " << cardToPlay->getName() << "!" << std::endl;
+              << " plays " << cardToPlay->GetName() << "!" << std::endl;
 
-    cardToPlay->play(player, targets);
+    cardToPlay->Play(player, targets);
 
     std::vector<int> capturedIndices = 
         DeckBuilder::findCaptureIndices(cardToPlay.get(), table);
@@ -140,7 +140,7 @@ void Game::resolvePlay(int cardIdx) {
     if (!capturedIndices.empty()) {
         std::cout << " -> CAPTURE! ";
         for (int idx : capturedIndices) {
-            std::cout << table[idx]->getName() << " ";
+            std::cout << table[idx]->GetName() << " ";
             scorePile.push_back(std::move(table[idx]));
         }
         std::cout << "!" << std::endl;
@@ -183,9 +183,9 @@ void Game::calculateScoring() {
     for (const auto& card : scorePile) {
         if (!card) continue;
         numCards++;
-        if (card->getSuit() == Suit::Denari) {
+        if (card->GetSuit() == Suit::Denari) {
             numDenari++;
-            if (card->getNumericValue() == 7) {
+            if (card->GetNumericValue() == 7) {
                 hasSettebello = true;
             }
         }

@@ -8,7 +8,7 @@ public:
 
 	void Step () { previous = current; }
 
-	void Listen () { listening = true; }
+	void Listen () { listening = true; cried = false; }
 	void Deafen ()
 	{
 		if (listening && !cried)

@@ -22,7 +22,7 @@ bool Scopalatro::GenerateNewRun (RunParameters const & param)
 			CardValue::Re
 		})
 		{
-			m_playerCards.emplace ("Normal Playing Card", "Placeholder Description", suit, value);
+			//m_playerCards.emplace ("Normal Playing Card", "Placeholder Description", suit, value);
 		}
 	}
 
