@@ -97,7 +97,6 @@ void CombatView::Update (RenderContext::Context ctx, Camera const & camera)
 				{
 					if (m_draggedCardID == InvalidObject)
 					{
-						Logger::log (LogLevel::Info, "somehow it ended early");
 						return TaskResult::Return;
 					}
 
@@ -277,13 +276,37 @@ void CombatView::CaptureCards (std::vector<ObjectID> cards)
 
 }
 
-CombatView::CombatView (CombatViewListener * subscriber, TLOT::RenderContext & context, TLOT::Camera & camera, TLOT::RenderableManager & sceneManager, TLOT::RenderableManager & uiManager, IndexedActorsTable cards):
+void CombatView::RegisterCardsActor (IndexedActorsTable cards)
+{
+	m_cards.insert (cards.begin (), cards.end ());
+	
+	// otherwise, transform will not be synchronized
+	for (auto & [ID, _] : cards)
+	{
+		auto & actor = m_cards[ID];
+		actor.SetScale ({m_cardSize, m_cardSize, 1.0f});
+		actor.SetPosition ({-1000.0f, 0.0f, 0.0f});
+		actor.SetPivot ({0.5f, 0.5f, 0.0f});
+	}
+}
+
+void CombatView::RegisterEnemiesActor (IndexedActorsTable enemies)
+{
+	m_enemies.insert (enemies.begin (), enemies.end ());
+
+	for (auto & [ID, _] : enemies)
+	{
+		auto & actor = m_enemies[ID];
+		actor.SetPosition ({0.0f, .8f, 2.0f});
+	}
+}
+
+CombatView::CombatView (CombatViewListener * subscriber, TLOT::RenderContext & context, TLOT::Camera & camera, TLOT::RenderableManager & sceneManager, TLOT::RenderableManager & uiManager):
 	m_subscriber {subscriber},
 	m_sceneManager {sceneManager},
 	m_uiManager {uiManager},
 	m_camera {camera},
-	m_context {context},
-	m_cards {cards}
+	m_context {context}
 {
 
 	m_cardSize      = context.GetViewport ().width / 12.8f;
@@ -296,14 +319,6 @@ CombatView::CombatView (CombatViewListener * subscriber, TLOT::RenderContext & c
 	m_play.beginY  = m_cardSize * 2.3;
 	m_play.width   = m_hand.width;
 	m_play.height  = (context.GetViewport ().height - (m_play.beginY)) * 0.8f;
-
-
-	for (auto & [ID, actor] : m_cards)
-	{
-		actor.SetScale ({m_cardSize, m_cardSize, 1.0f});
-		actor.SetPosition ({-1000.0f, 0.0f, 0.0f});
-		actor.SetPivot ({0.5f, 0.5f, 0.0f});
-	}
 }
 
 // Private =>
@@ -342,14 +357,11 @@ TaskID CombatView::GenerateMoveCardTask (ObjectID cardID, glm::vec3 targetPositi
 	return m_taskManager.RegisterTask ([=, this] (TaskID ID, double progress, double deltaTime) -> TaskResult
 	{
 		progress = progress * speed;
-		//Logger::log (LogLevel::Info, "progress={} for taskID={}", progress, ID);
 		auto & card = m_cards[cardID];
 
 		float curve = easingFunction (std::min (progress, 1.0));
-
 		glm::vec3 currentPosition = glm::mix (startingPosition, targetPosition, curve);
 		glm::vec3 currentScale = glm::mix (startingScale, targetScale, curve);
-
 		card.SetPosition (currentPosition);
 		card.SetScale (currentScale);
 
@@ -357,8 +369,6 @@ TaskID CombatView::GenerateMoveCardTask (ObjectID cardID, glm::vec3 targetPositi
 		{
 			return TaskResult::Return;
 		}
-
-		//progress += deltaTime * speed;
 
 		return TaskResult::Yield;
 	});

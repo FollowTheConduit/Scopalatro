@@ -54,6 +54,9 @@ private:
 
 	ObjectID m_nextID = 0;
 
-	IndexedCardInventory m_cardTable;
+	IndexedCardTable m_cardTable;
 	IndexedActorsTable   m_cardActorTable;
+
+	IndexedEnemyTable    m_enemyTable;
+	IndexedActorsTable   m_enemyActorTable;
 };

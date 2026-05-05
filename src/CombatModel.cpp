@@ -213,7 +213,7 @@ std::string_view CombatModel::GetCardDescription (ObjectID card)
 	return std::string_view {"If you see this, I forgor to implement GetCardDescription (ObjectID Card)"};
 }
 
-CombatModel::CombatModel (CombatModelListener * listener, IndexedCardInventory cardTable):
+CombatModel::CombatModel (CombatModelListener * listener, IndexedCardTable cardTable):
 	m_listener {listener},
 	m_cardTable {cardTable}
 {

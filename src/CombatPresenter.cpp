@@ -1,8 +1,37 @@
 #include <Combat/CombatPresenter.hpp>
+#include <modules/Sprite.hpp>
+
+#include <EnemyName.hpp>
 
 using namespace TLOT;
 
-static inline Renderable CreateCardActor (Suit suit, CardValue value, Transform transform, RenderableManager & manager)
+static std::vector<ResourceHandle> GetTexturesFromKeys (std::vector<std::string> textureKeys, RenderableManager & manager)
+{
+	std::vector<ResourceHandle> textureIDs;
+
+	for (auto & key : textureKeys)
+	{
+		auto id = manager.GetAssetManager ().GetTextureID (key);
+		textureIDs.push_back (id);
+		manager.GetRenderer ().RegisterTexture (id, manager.GetAssetManager ().GetTexture (id));
+	}
+
+	return textureIDs;
+}
+
+static std::map<std::string, SpriteAnimation> GetEnemyAnimations (std::string enemyName, RenderableManager & manager)
+{
+	static std::map<std::string, SpriteAnimation> const badaliscAnimations = {
+		{"idle", SpriteAnimation { GetTexturesFromKeys ({"enemy_badalisc_idle_0"}, manager) }}
+	};
+
+	if (enemyName == BADALISC)
+		return badaliscAnimations;
+
+	return {};
+}
+
+static Renderable CreateCardActor (Suit suit, CardValue value, Transform transform, RenderableManager & manager)
 {
 	auto & assetManager = manager.GetAssetManager ();
 
@@ -17,6 +46,29 @@ static inline Renderable CreateCardActor (Suit suit, CardValue value, Transform 
 	cardMesh.material.diffuseTextures = { backTex, cardTex };
 
 	return manager.Create (cardMesh, transform);
+}
+
+static Sprite CreateEnemyActor (std::string name, RenderableManager & manager)
+{
+	Logger::log (LogLevel::Info, "Generating EnemyActor for {} enemy", name);
+	auto & assetManager = manager.GetAssetManager ();
+
+	Mesh enemyMesh = assetManager.GetMesh (assetManager.GetQuadMeshID ());
+
+	auto animations = GetEnemyAnimations (name, manager);
+	Renderable base = manager.Create (enemyMesh, {});
+	auto sprite = Sprite {base, assetManager};
+
+	for (auto & animation : animations)
+	{
+		sprite.RegisterAnimation (animation.first, animation.second);
+	}
+
+	//sprite.ClearDiffuseTextures (manager.GetAssetManager ());
+
+	sprite.SetAnimation ("idle");
+	sprite.ForceUpdate ();
+	return sprite;
 }
 
 CombatView * CombatPresenter::GetView ()
@@ -42,8 +94,17 @@ CombatPresenter::CombatPresenter (TLOT::RenderContext & context, TLOT::Camera & 
 		m_cardActorTable.emplace (m_nextID++, CreateCardActor (card->GetSuit (), card->GetValue (), Transform {}, uiManager));
 	}
 
+	for (auto & enemy : params.enemies)
+	{
+		m_enemyTable.emplace (m_nextID, enemy);
+		m_enemyActorTable.emplace (m_nextID, CreateEnemyActor (enemy->name, sceneManager));
+	}
+
 	m_model = std::make_unique<CombatModel> (this, m_cardTable);
-	m_view  = std::make_unique<CombatView>  (this, context, camera, sceneManager, uiManager, m_cardActorTable);
+	m_view  = std::make_unique<CombatView>  (this, context, camera, sceneManager, uiManager);
+
+	m_view->RegisterCardsActor (m_cardActorTable);
+	m_view->RegisterEnemiesActor (m_enemyActorTable);
 }
 
 void CombatPresenter::Begin ()

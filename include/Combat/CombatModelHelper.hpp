@@ -3,8 +3,11 @@
 #include <set>
 
 #include <Combat/Card.hpp>
+#include <Combat/Enemy.hpp>
 
 using CardInventory = std::set<Card *>;
 using ItemInventory = int; // TODO <-- when items are implemented, do the thing
-using IndexedCardInventory = std::map<ObjectID, Card *>;
-using IndexedItemInventory = int; // TODO <-- when items are implemented, do the thing
+
+using IndexedCardTable  = std::map<ObjectID, Card *>;
+using IndexedEnemyTable = std::map<ObjectID, Enemy *>;
+using IndexedItemTable  = int; // TODO <-- when items are implemented, do the thing

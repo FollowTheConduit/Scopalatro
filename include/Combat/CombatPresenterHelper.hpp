@@ -6,6 +6,7 @@
 #include <Combat/CombatHelper.hpp>
 #include <Combat/CombatModelHelper.hpp>
 #include <Combat/CombatViewHelper.hpp>
+#include <Combat/Enemy.hpp>
 
 struct EnnemyParam
 {
@@ -19,6 +20,6 @@ struct CombatParams
 
 	CardInventory playerCards;
 	ItemInventory playerItems;
-
-	std::vector<EnnemyParam> enemies;
+	
+	std::vector<Enemy *> enemies;
 };

@@ -18,6 +18,8 @@
 
 #include <core/InputManager.hpp>
 
+#include <EnemyName.hpp>
+
 using namespace std;
 using namespace TLOT;
 
@@ -68,7 +70,8 @@ int main ()
 	// Resources
 	RenderableManager sceneManager {assetManager, sceneRenderer};
 	RenderableManager uiManager    {assetManager, uiRenderer};
-
+	
+	assetManager.LoadTexture ("enemy_badalisc_idle_0", "data/assets/textures/badalisc_placeholder.png");
 	assetManager.LoadTexture ("card_back", "data/assets/textures/card_back_normal.png");
 	// {Suit::Bastoni, Suit::Coppe, Suit::Denari, Suit::Spada}
 	for (auto const & suit : { Suit::Denari })
@@ -114,8 +117,10 @@ int main ()
 
 	// Combat Initialization
 
+	auto badalisc = Enemy {BADALISC, 0};
+
 	CombatParams combatParams;
-	combatParams.enemies = {};
+	combatParams.enemies = {&badalisc};
 	combatParams.playerHP = 50.0;
 	combatParams.playerMaxHP = 50.0;
 	combatParams.playerItems = 0; // TODO: placeholder
@@ -139,6 +144,7 @@ int main ()
 	static float const SENSITIVITY = 0.25f;
 
 	bool DEBUG_MODE = false;
+	bool _3D_MODE = false;
 	rctx.HideMouse (false);
 
 	double ready = 2.0;
@@ -163,41 +169,41 @@ int main ()
 			//deltaY = 0.0;
 		}
 
+		if (InputManager::getInstance ().isKeyPressed (GLFW_KEY_M)) {
+			_3D_MODE = !_3D_MODE;
+			ctx.HideMouse (_3D_MODE);
+			deltaX = 0.0;
+			deltaY = 0.0;
+		}
+
 		if (InputManager::getInstance ().isKeyPressed (GLFW_KEY_ESCAPE)) {
 			glfwSetWindowShouldClose (ctx.window, true);
 		}
 
-		//if (!DEBUG_MODE) return;
-		//camera.rotate ({deltaX * SENSITIVITY, deltaY * -SENSITIVITY, 0.0});
-//
-		//if (glfwGetKey (ctx.window, GLFW_KEY_W) == GLFW_PRESS) {
-		//	camera.move_forward (ctx.deltaTime);
-		//}
-//
-		//if (glfwGetKey (ctx.window, GLFW_KEY_S) == GLFW_PRESS) {
-		//	camera.move_backward (ctx.deltaTime);
-		//}
-//
-		//if (glfwGetKey (ctx.window, GLFW_KEY_A) == GLFW_PRESS) {
-		//	camera.move_left (ctx.deltaTime);
-		//}
-//
-		//if (glfwGetKey (ctx.window, GLFW_KEY_D) == GLFW_PRESS) {
-		//	camera.move_right (ctx.deltaTime);
-		//}
-//
-		//if (glfwGetKey (ctx.window, GLFW_KEY_E) == GLFW_PRESS) {
-		//	camera.move_up (ctx.deltaTime);
-		//}
-//
-		//if (glfwGetKey (ctx.window, GLFW_KEY_Q) == GLFW_PRESS) {
-		//	camera.move_down (ctx.deltaTime);
-		//}
-//
-		//if (glfwGetKey (ctx.window, GLFW_KEY_P) == GLFW_PRESS) {
-		//	camera.rotation.x = 90.0;
-		//	camera.rotation.y = 10.0;
-		//}
+		if (!_3D_MODE) return;
+		camera.rotate ({deltaX * SENSITIVITY, deltaY * -SENSITIVITY, 0.0});
+		if (glfwGetKey (ctx.window, GLFW_KEY_W) == GLFW_PRESS) {
+			camera.move_forward (ctx.deltaTime);
+		}
+		if (glfwGetKey (ctx.window, GLFW_KEY_S) == GLFW_PRESS) {
+			camera.move_backward (ctx.deltaTime);
+		}
+		if (glfwGetKey (ctx.window, GLFW_KEY_A) == GLFW_PRESS) {
+			camera.move_left (ctx.deltaTime);
+		}
+		if (glfwGetKey (ctx.window, GLFW_KEY_D) == GLFW_PRESS) {
+			camera.move_right (ctx.deltaTime);
+		}
+		if (glfwGetKey (ctx.window, GLFW_KEY_E) == GLFW_PRESS) {
+			camera.move_up (ctx.deltaTime);
+		}
+		if (glfwGetKey (ctx.window, GLFW_KEY_Q) == GLFW_PRESS) {
+			camera.move_down (ctx.deltaTime);
+		}
+		if (glfwGetKey (ctx.window, GLFW_KEY_P) == GLFW_PRESS) {
+			camera.rotation.x = 90.0;
+			camera.rotation.y = 10.0;
+		}
 	});
 
 
@@ -207,7 +213,8 @@ int main ()
 		// The assetManager should load "ShaderSource"
 		// and the renderer should create the "Shader"
 		// by combining multiple "ShaderSource"s
-		//sceneRenderer.Render (shader, camera);
+		glClear  (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		sceneRenderer.Render (shader, camera);
 		uiRenderer.Render (uiShader, camera);
 
 		DebugRenderer::Get ().Render ();

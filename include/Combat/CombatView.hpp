@@ -38,7 +38,9 @@ public:
 	void ExhaustCards (std::vector<ObjectID> cards);
 	void CaptureCards (std::vector<ObjectID> cards);
 
-	CombatView (CombatViewListener * subscriber, TLOT::RenderContext & context, TLOT::Camera & camera, TLOT::RenderableManager & sceneManager, TLOT::RenderableManager & uiManager, IndexedActorsTable cards);
+	void RegisterCardsActor    (IndexedActorsTable cards);
+	void RegisterEnemiesActor (IndexedActorsTable enemies);
+	CombatView (CombatViewListener * subscriber, TLOT::RenderContext & context, TLOT::Camera & camera, TLOT::RenderableManager & sceneManager, TLOT::RenderableManager & uiManager);
 
 private:
 	std::map<ObjectID, glm::mat4> GetHoveredObjects ();

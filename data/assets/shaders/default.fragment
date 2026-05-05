@@ -51,10 +51,13 @@ void main() {
 		colorAlpha = max (colorAlpha, tex.a);
 	}
 
-	if (colorAlpha <= 0.0)
+	if (colorAlpha <= 0.0 && data.textureCount > 1)
 	{
 		discard;
 	}
+
+	//colorRGB = vec3 (1.0, 0.0, 0.0);
+	//colorAlpha = 1.0;
 
 	FragColor = vec4 (colorRGB, colorAlpha);
 };
