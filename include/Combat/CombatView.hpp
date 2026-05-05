@@ -6,10 +6,12 @@
 #include <Combat/CombatViewHelper.hpp>
 #include <Combat/CombatViewListener.hpp>
 #include <Combat/HandArea.hpp>
+#include <Combat/PlayArea.hpp>
 
 #include <BiTemporalState.hpp>
+#include <TaskManager.hpp>
+#include <TaskQueue.hpp>
 
-#include <EventManager.hpp>
 
 #include <modules/Camera.hpp>
 
@@ -31,16 +33,6 @@ class CombatView
 public:
 	void Update (TLOT::RenderContext::Context ctx, TLOT::Camera const & camera);
 
-	void StopDisplayEvent (DisplayEventID event);
-
-	DisplayEventID DisplayTurnCount (int turn);
-	DisplayEventID DisplayActionFailure (std::string_view reason);
-	DisplayEventID DisplayCardDescription (ObjectID card, std::string_view description, double ms);
-
-	void DisplayEnemyTargetSelector  ();
-	void DisplayPlayerTargetSelector ();
-	void StopDisplayTargetSelector   ();
-
 	void DrawCards (std::vector<ObjectID> cards);
 	void DiscardCards (std::vector<ObjectID> cards);
 	void ExhaustCards (std::vector<ObjectID> cards);
@@ -49,12 +41,9 @@ public:
 	CombatView (CombatViewListener * subscriber, TLOT::RenderContext & context, TLOT::Camera & camera, TLOT::RenderableManager & sceneManager, TLOT::RenderableManager & uiManager, IndexedActorsTable cards);
 
 private:
-	void MarkEventForDeletion (DisplayEventID event);
-	void DeleteMarkedEvents ();
+	std::map<ObjectID, glm::mat4> GetHoveredObjects ();
+	TaskID GenerateMoveCardTask (ObjectID card, glm::vec3 targetPosition, glm::vec3 targetScale, float speed, float (*easingFunction)(float));
 
-	void MoveHand ();
-
-	EventID MoveHandCardEvent (ObjectID card, glm::vec3 targetPosition, glm::vec3 targetScale, float speed, float (*easingFunction)(float), double ms = -1.0f);
 
 	// Pointers
 	CombatViewListener * m_subscriber;
@@ -64,28 +53,24 @@ private:
 	TLOT::RenderableManager & m_uiManager;
 	TLOT::Camera & m_camera;
 
-
-	// Animations
-	std::map<ObjectID, EventID> m_activeAnimations;
-	EventID m_dragCardAnimation;
-	
-
 	// States
 	double m_delta;
-	bool m_isActive = true;
 
 	bool m_canHover = false;
+	bool m_canDrag  = false;
 
-	ObjectID m_hoveredCardLast = (ObjectID)-1;
-	ObjectID m_draggedCard = (ObjectID)-1;
+	ObjectID m_hoveredCardID = InvalidObject;
+	ObjectID m_draggedCardID = InvalidObject;
 
-
+	ObjectID m_lastHoveredCardID = InvalidObject;
+	ObjectID m_lastDraggedCardID = InvalidObject;
 
 	// Positions and sizes
 	float m_cardSize = 200.0f;
 	float m_handBeginX = 200.0f;
 
 	HandArea m_hand;
+	PlayArea m_play;
 
 
 	// Tables
@@ -94,8 +79,8 @@ private:
 	
 
 	// Events
-	EventManager m_eventManager;
-
-	std::map<DisplayEventID, DisplayEvent> m_displayList;
-	std::set<DisplayEventID> m_markedEventForDeletion;
+	TaskManager m_taskManager;
+	TaskQueue   m_taskQueue    {m_taskManager};
+	TaskQueue   m_hoverQueue   {m_taskManager};
+	TaskQueue   m_discardQueue {m_taskManager};
 };

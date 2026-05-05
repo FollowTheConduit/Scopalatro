@@ -3,6 +3,8 @@
 
 #include <Core/Logger.hpp>
 
+#include <algorithm>
+
 using namespace TLOT;
 
 void HandArea::AddCard (ObjectID card)
@@ -23,7 +25,7 @@ void HandArea::RemoveCard (ObjectID card)
 	m_hand.erase (card);
 	RecalculateIndices ();
 	
-	if (m_nextIndex != 1) m_nextIndex--;
+	if (m_nextIndex != 0) m_nextIndex--;
 }
 
 size_t HandArea::GetHandSize ()
@@ -37,17 +39,20 @@ glm::vec3 HandArea::GetCardPos (ObjectID card)
 
 	size_t index = m_hand[card];
 
-	if (m_draggedCard != (ObjectID)-1)
+	float handSize = (float)GetHandSize ();
+
+	if (m_draggedCard != InvalidObject)
 	{
 		auto draggedCardIndex = m_hand.at (m_draggedCard);
+		handSize -= 1.0f;
 	
 		if (index < draggedCardIndex)
 		{
-			index += 1;
+			//index += 1;
 		}
 		else if (index > draggedCardIndex)
 		{
-			//index -= 1;
+			index -= 1;
 		}
 		else
 		{
@@ -55,29 +60,32 @@ glm::vec3 HandArea::GetCardPos (ObjectID card)
 		}
 	}
 
-	float transformedIndex = (float)index - ((float)GetHandSize () / 2.0f);
+	float transformedIndex = (float)index - (handSize / 2.0f);
 
-	float paddingX = -(float)GetHandSize () * (float)GetHandSize () + 95.0f;
+	float paddingX = -handSize * handSize + 95.0f;
 
 	float x = beginX + (width / 2) + cardSize + (paddingX / 2) + transformedIndex * (cardSize + paddingX);
 	float y = cardSize;
 	float z = index * 0.1f;
 
-	if (m_hoveredCard != (ObjectID)-1)
+	if (m_hoveredCard != InvalidObject && m_draggedCard == InvalidObject)
 	{
 		auto hoveredCardIndex = m_hand.at (m_hoveredCard);
 	
+		float offsetX = 50 + std::abs (cardSize / (2.0f * hoverFactor) - paddingX) * hoverFactor;
+
 		if (index < hoveredCardIndex)
 		{
-			x -= 100.0f - paddingX;
+			x -= offsetX; // TODO: correct the logic here
 		}
 		else if (index > hoveredCardIndex)
 		{
-			x += 50.0f;
+			x += offsetX;
 		}
 		else
 		{
 			y += GetCardSize (card).y;
+			x += GetCardSize (card).x / (2.0f * hoverFactor);
 		}
 	}
 
@@ -89,9 +97,9 @@ glm::vec3 HandArea::GetCardSize (ObjectID card)
 {
 	if (m_hand.find (card) == m_hand.end ()) return glm::vec3 {-1000.0f};
 
-	if (card == m_hoveredCard)
+	if (card == m_hoveredCard || card == m_draggedCard)
 	{
-		return glm::vec3 {cardSize} * 1.5f;
+		return glm::vec3 {cardSize} * hoverFactor;
 	}
 
 	return glm::vec3 {cardSize};

@@ -107,7 +107,8 @@ int main ()
 			CardValue::Re
 		})
 		{
-			deck.push_back (std::move (std::make_unique<Card> ("name", "description", suit, value)));
+			std::string name = "[" + suitToString (suit) + " - " + valueToString (value) +  "]"; 
+			deck.push_back (std::move (std::make_unique<Card> (name, "Basic Card", suit, value)));
 		}
 	}
 
@@ -140,9 +141,16 @@ int main ()
 	bool DEBUG_MODE = false;
 	rctx.HideMouse (false);
 
+	double ready = 2.0;
+
 	// logic setup
 	rctx.SetUpdateLoop ([&](RenderContext::Context const & ctx) {
-		view->Update (ctx, camera);
+		if (ready < 0.0)
+		{
+			view->Update (ctx, camera);
+		}
+
+		ready -= ctx.deltaTime;
 
 		double deltaX = ctx.mouseX - ctx.lastMouseX;
 		double deltaY = ctx.mouseY - ctx.lastMouseY;

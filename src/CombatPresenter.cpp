@@ -32,16 +32,14 @@ void CombatPresenter::PreparePlayerTurn ()
 
 CombatPresenter::CombatPresenter (TLOT::RenderContext & context, TLOT::Camera & camera, TLOT::RenderableManager & sceneManager, TLOT::RenderableManager & uiManager, CombatParams params)
 {
-	ObjectID nextID = 0;
-
 	Renderer & uiRenderer = uiManager.GetRenderer ();
 	AssetManager & assetManager = uiManager.GetAssetManager ();
 
 	
 	for (auto & card : params.playerCards)
 	{
-		m_cardTable.emplace (nextID, card);
-		m_cardActorTable.emplace (nextID++, CreateCardActor (card->GetSuit (), card->GetValue (), Transform {}, uiManager));
+		m_cardTable.emplace (m_nextID, card);
+		m_cardActorTable.emplace (m_nextID++, CreateCardActor (card->GetSuit (), card->GetValue (), Transform {}, uiManager));
 	}
 
 	m_model = std::make_unique<CombatModel> (this, m_cardTable);
@@ -53,34 +51,19 @@ void CombatPresenter::Begin ()
 	PreparePlayerTurn ();
 }
 
-void CombatPresenter::OnCardHoverStart (ObjectID card)
+void CombatPresenter::OnCardDropInPlayArea (ObjectID card)
 {
-	auto description = m_model->GetCardDescription (card);
-
-	m_descriptions[card] = m_view->DisplayCardDescription (card, description, -1.0);
+	m_model->PlayCard (card);
 }
-
-void CombatPresenter::OnCardHoverStop (ObjectID card)
-{
-	auto displayEventPos = m_descriptions.find (card);
-	if (displayEventPos == m_descriptions.end ()) return;
-
-	DisplayEventID descriptionDisplayID = displayEventPos->second;
-	
-	m_view->StopDisplayEvent (descriptionDisplayID);
-}
-
-void CombatPresenter::OnCardPress (ObjectID card) {}
-
-void CombatPresenter::OnCardDrag (ObjectID card) {}
-void CombatPresenter::OnCardDrop (ObjectID card) {}
-
-void CombatPresenter::OnEnemyHover (ObjectID enemy) {}
-void CombatPresenter::OnEnemyPress (ObjectID enemy) {}
 
 void CombatPresenter::DebugDrawCard ()
 {
-	m_model->Draw (1);
+	m_model->DrawUntilHandFull ();
+}
+
+ObjectID CombatPresenter::GenerateObject ()
+{
+	return m_nextID++;
 }
 
 void CombatPresenter::OnMessage (std::string const message)

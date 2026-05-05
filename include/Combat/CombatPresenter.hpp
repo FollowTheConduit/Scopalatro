@@ -27,18 +27,11 @@ public:
 private:
 	// View events
 
-	void OnCardHoverStart (ObjectID card) override;
-	void OnCardHoverStop  (ObjectID card) override;
-
-	void OnCardPress  (ObjectID card) override;
-
-	void OnCardDrag  (ObjectID card) override;
-	void OnCardDrop  (ObjectID card) override;
-
-	void OnEnemyHover  (ObjectID enemy) override;
-	void OnEnemyPress  (ObjectID enemy) override;
+	void OnCardDropInPlayArea (ObjectID card) override;
 
 	void DebugDrawCard () override;
+
+	ObjectID GenerateObject () override;
 
 	// Model events
 	
@@ -59,10 +52,7 @@ private:
 	std::unique_ptr<CombatView>  m_view;
 	std::unique_ptr<CombatModel> m_model;
 
-	std::map<ObjectID, DisplayEventID> m_descriptions;
-	
-	ObjectID m_cardTemp;
-	bool m_waitingForTarget;
+	ObjectID m_nextID = 0;
 
 	IndexedCardInventory m_cardTable;
 	IndexedActorsTable   m_cardActorTable;

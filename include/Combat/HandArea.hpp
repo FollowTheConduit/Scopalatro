@@ -19,6 +19,8 @@ public:
 	float width;
 	float beginX;
 
+	float hoverFactor = 2.0f;
+
 	void AddCard (ObjectID card);
 
 	void RemoveCard (ObjectID card);
@@ -40,8 +42,8 @@ private:
 
 	std::map<ObjectID, size_t> m_hand;
 
-	ObjectID m_hoveredCard = (ObjectID)-1;
-	ObjectID m_draggedCard = (ObjectID)-1;
+	ObjectID m_hoveredCard = InvalidObject;
+	ObjectID m_draggedCard = InvalidObject;
 
 	size_t m_nextIndex = 0;
 };

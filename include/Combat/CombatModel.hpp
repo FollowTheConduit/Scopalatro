@@ -17,10 +17,15 @@ public:
 	void ShuffleDeck ();
 
 	void Draw (size_t count);
+	void DrawUntilHandFull ();
+	void Discard (ObjectID cardID);
+	void Exhaust (ObjectID cardID);
 	void DiscardHand ();
 
 	void StartPlayerTurn ();
 	void EndPlayerTurn ();
+
+	void PlayCard (ObjectID cardID);
 
 	void Damage (ObjectID source, uint32_t calculatedDamage, ObjectID target);
 	void Death  (ObjectID source, ObjectID target);
@@ -31,6 +36,8 @@ public:
 	CombatModel (CombatModelListener * listener, IndexedCardInventory cardTable);
 
 private:
+	void PrintPiles ();
+
 	CharacterState player;
 
 	IndexedCardInventory m_cardTable;
