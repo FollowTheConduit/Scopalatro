@@ -276,6 +276,24 @@ void CombatView::CaptureCards (std::vector<ObjectID> cards)
 
 }
 
+void DamageEntity (ObjectID entityID, int damage)
+{
+
+}
+
+void HealEntity   (ObjectID entityID, int heal)
+{
+
+}
+
+
+void CombatView::SetPrimaryEnemy (ObjectID enemyID)
+{
+	m_primaryEnemyID = enemyID;
+
+	m_enemies[enemyID].SetPosition ({m_primaryEnemyX, m_primaryEnemyY, m_primaryEnemyZ});
+}
+
 void CombatView::RegisterCardsActor (IndexedActorsTable cards)
 {
 	m_cards.insert (cards.begin (), cards.end ());
@@ -297,7 +315,9 @@ void CombatView::RegisterEnemiesActor (IndexedActorsTable enemies)
 	for (auto & [ID, _] : enemies)
 	{
 		auto & actor = m_enemies[ID];
-		actor.SetPosition ({0.0f, .8f, 2.0f});
+		actor.SetPosition ({-1000.0f, 0.0f, 0.0f});
+		actor.SetScale ({m_enemyScale, m_enemyScale, 1.0f});
+		actor.SetPivot (glm::vec3 {0., 0., 0.});
 	}
 }
 
@@ -309,16 +329,33 @@ CombatView::CombatView (CombatViewListener * subscriber, TLOT::RenderContext & c
 	m_context {context}
 {
 
-	m_cardSize      = context.GetViewport ().width / 12.8f;
+	float width = (float)context.GetViewport ().width;
+	float height = (float)context.GetViewport ().height;
+
+	m_cardSize      = width / 12.8f;
 	m_hand.cardSize = m_cardSize;
 	m_hand.width    = 10 * m_cardSize;
-	m_hand.beginX   = (m_context.GetViewport ().width - m_hand.width) / 2;
+	m_hand.beginX   = (width - m_hand.width) / 2;
 
 	m_play.actorID = m_subscriber->GenerateObject ();
 	m_play.beginX  = m_hand.beginX;
 	m_play.beginY  = m_cardSize * 2.3;
 	m_play.width   = m_hand.width;
-	m_play.height  = (context.GetViewport ().height - (m_play.beginY)) * 0.8f;
+	m_play.height  = (height - (m_play.beginY)) * 0.8f;
+
+	m_primaryEnemyX = 0.0f;
+	m_primaryEnemyY = 0.4f;
+	m_primaryEnemyZ = 3.0f;
+	m_enemyScale    = 2.0f;
+
+	auto & assetManager = sceneManager.GetAssetManager ();
+	auto quadID = assetManager.GetQuadMeshID ();
+	auto quadMesh = assetManager.GetMesh (quadID);
+	quadMesh.material.diffuseTextures.push_back (assetManager.GetTextureID ("scene_table"));
+	Renderable table = RenderableManager {sceneManager.GetAssetManager (), sceneManager.GetRenderer ()}.Create (quadMesh, {});
+	table.SetRotation (glm::radians (glm::vec3 {90.0, 0.0, 0.0}));
+	table.SetPosition (glm::vec3 { 0.0, -0.4, 0.0});
+	table.SetScale (glm::vec3 {3.0, 3.0, 3.0});
 }
 
 // Private =>

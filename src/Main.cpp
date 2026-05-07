@@ -71,10 +71,25 @@ int main ()
 	RenderableManager sceneManager {assetManager, sceneRenderer};
 	RenderableManager uiManager    {assetManager, uiRenderer};
 	
+
+	// ui
+	assetManager.LoadTexture ("ui_button_corner_top_left",     "data/assets/textures/button_top_left_corner.png");
+	assetManager.LoadTexture ("ui_button_corner_top_right",    "data/assets/textures/button_top_right_corner.png");
+	assetManager.LoadTexture ("ui_button_corner_bottom_left",  "data/assets/textures/button_bottom_left_corner.png");
+	assetManager.LoadTexture ("ui_button_corner_bottom_right", "data/assets/textures/button_bottom_right_corner.png");
+	assetManager.LoadTexture ("ui_button_center",              "data/assets/textures/button_center.png");
+
+	// scene
+	assetManager.LoadTexture ("scene_table", "data/assets/textures/table.png");
+
+	// enemies
 	assetManager.LoadTexture ("enemy_badalisc_idle_0", "data/assets/textures/badalisc_placeholder.png");
+
+	// cards
 	assetManager.LoadTexture ("card_back", "data/assets/textures/card_back_normal.png");
-	// {Suit::Bastoni, Suit::Coppe, Suit::Denari, Suit::Spada}
-	for (auto const & suit : { Suit::Denari })
+	// { Suit::Bastoni, Suit::Coppe, Suit::Denari, Suit::Spada }
+	// { Suit::Denari }
+	for (auto const & suit : { Suit::Bastoni, Suit::Coppe, Suit::Denari, Suit::Spada })
 	{
 		for (auto const & value : { 
 			CardValue::Asso,    CardValue::Due,     CardValue::Tre,
@@ -101,7 +116,7 @@ int main ()
 	std::unique_ptr<Card> dummy = std::make_unique<Card> ("Dummy Card", "If you see this, there is a bug.");
 	std::vector<std::unique_ptr<Card>> deck;
 
-	for (auto const & suit : {Suit::Denari})
+	for (auto const & suit : { Suit::Bastoni, Suit::Coppe, Suit::Denari, Suit::Spada })
 	{
 		for (auto const & value : { 
 			CardValue::Asso,    CardValue::Due,     CardValue::Tre,

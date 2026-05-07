@@ -64,8 +64,6 @@ static Sprite CreateEnemyActor (std::string name, RenderableManager & manager)
 		sprite.RegisterAnimation (animation.first, animation.second);
 	}
 
-	//sprite.ClearDiffuseTextures (manager.GetAssetManager ());
-
 	sprite.SetAnimation ("idle");
 	sprite.ForceUpdate ();
 	return sprite;
@@ -90,12 +88,15 @@ CombatPresenter::CombatPresenter (TLOT::RenderContext & context, TLOT::Camera & 
 	
 	for (auto & card : params.playerCards)
 	{
+		m_cardsID.push_back (m_nextID);
 		m_cardTable.emplace (m_nextID, card);
 		m_cardActorTable.emplace (m_nextID++, CreateCardActor (card->GetSuit (), card->GetValue (), Transform {}, uiManager));
 	}
 
+
 	for (auto & enemy : params.enemies)
 	{
+		m_enemiesID.push_back (m_nextID);
 		m_enemyTable.emplace (m_nextID, enemy);
 		m_enemyActorTable.emplace (m_nextID, CreateEnemyActor (enemy->name, sceneManager));
 	}
@@ -105,6 +106,8 @@ CombatPresenter::CombatPresenter (TLOT::RenderContext & context, TLOT::Camera & 
 
 	m_view->RegisterCardsActor (m_cardActorTable);
 	m_view->RegisterEnemiesActor (m_enemyActorTable);
+
+	m_view->SetPrimaryEnemy (m_enemiesID[0]);
 }
 
 void CombatPresenter::Begin ()

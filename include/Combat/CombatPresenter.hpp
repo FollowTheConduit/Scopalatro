@@ -54,9 +54,12 @@ private:
 
 	ObjectID m_nextID = 0;
 
-	IndexedCardTable m_cardTable;
+	IndexedCardTable     m_cardTable;
 	IndexedActorsTable   m_cardActorTable;
 
 	IndexedEnemyTable    m_enemyTable;
 	IndexedActorsTable   m_enemyActorTable;
+
+	std::vector<ObjectID> m_cardsID;
+	std::vector<ObjectID> m_enemiesID;
 };

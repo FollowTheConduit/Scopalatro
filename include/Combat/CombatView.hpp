@@ -38,6 +38,11 @@ public:
 	void ExhaustCards (std::vector<ObjectID> cards);
 	void CaptureCards (std::vector<ObjectID> cards);
 
+	void DamageEntity (ObjectID entityID, int damage);
+	void HealEntity   (ObjectID entityID, int heal);
+
+	void SetPrimaryEnemy (ObjectID enemyID);
+
 	void RegisterCardsActor    (IndexedActorsTable cards);
 	void RegisterEnemiesActor (IndexedActorsTable enemies);
 	CombatView (CombatViewListener * subscriber, TLOT::RenderContext & context, TLOT::Camera & camera, TLOT::RenderableManager & sceneManager, TLOT::RenderableManager & uiManager);
@@ -67,9 +72,18 @@ private:
 	ObjectID m_lastHoveredCardID = InvalidObject;
 	ObjectID m_lastDraggedCardID = InvalidObject;
 
+	ObjectID m_primaryEnemyID = InvalidObject;
+
+	std::map<ObjectID, EntityMetaData> m_entityData;
+
 	// Positions and sizes
 	float m_cardSize = 200.0f;
 	float m_handBeginX = 200.0f;
+
+	float m_primaryEnemyX;
+	float m_primaryEnemyY;
+	float m_primaryEnemyZ;
+	float m_enemyScale;
 
 	HandArea m_hand;
 	PlayArea m_play;
@@ -83,6 +97,6 @@ private:
 	// Events
 	TaskManager m_taskManager;
 	TaskQueue   m_taskQueue    {m_taskManager};
-	TaskQueue   m_hoverQueue   {m_taskManager};
-	TaskQueue   m_discardQueue {m_taskManager};
+	//TaskQueue   m_hoverQueue   {m_taskManager};
+	//TaskQueue   m_discardQueue {m_taskManager};
 };
