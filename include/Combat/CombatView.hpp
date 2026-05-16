@@ -1,6 +1,6 @@
 #pragma once
 
-#include <opengl/RenderContext.hpp>
+#include <RenderContext.hpp>
 
 #include <Combat/CombatHelper.hpp>
 #include <Combat/CombatViewHelper.hpp>
@@ -13,7 +13,8 @@
 #include <TaskQueue.hpp>
 
 
-#include <modules/Camera.hpp>
+#include <Renderer/Camera.hpp>
+#include <Renderer/IRenderer.hpp>
 
 #include <map>
 #include <memory>
@@ -31,7 +32,7 @@ struct DrawArea
 class CombatView
 {
 public:
-	void Update (TLOT::RenderContext::Context ctx, TLOT::Camera const & camera);
+	void Update (TLOT::RenderContext ctx, TLOT::Camera const & camera);
 
 	void DrawCards (std::vector<ObjectID> cards);
 	void DiscardCards (std::vector<ObjectID> cards);
@@ -45,7 +46,7 @@ public:
 
 	void RegisterCardsActor    (IndexedActorsTable cards);
 	void RegisterEnemiesActor (IndexedActorsTable enemies);
-	CombatView (CombatViewListener * subscriber, TLOT::RenderContext & context, TLOT::Camera & camera, TLOT::RenderableManager & sceneManager, TLOT::RenderableManager & uiManager);
+	CombatView (CombatViewListener * subscriber, TLOT::RenderContext & context, TLOT::Camera & camera, TLOT::IRenderer & sceneManager, TLOT::IRenderer & uiManager);
 
 private:
 	std::map<ObjectID, glm::mat4> GetHoveredObjects ();
@@ -56,8 +57,10 @@ private:
 	CombatViewListener * m_subscriber;
 
 	TLOT::RenderContext & m_context;
-	TLOT::RenderableManager & m_sceneManager;
-	TLOT::RenderableManager & m_uiManager;
+
+	TLOT::IRenderer & m_sceneRenderer;
+	TLOT::IRenderer & m_uiRenderer;
+	
 	TLOT::Camera & m_camera;
 
 	// States

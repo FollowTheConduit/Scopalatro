@@ -9,7 +9,8 @@
 #include <Combat/CombatHelper.hpp>
 #include <Combat/CombatModelHelper.hpp>
 #include <Combat/CombatModelListener.hpp>
-#include <Combat/Card.hpp>
+
+#include <Card.hpp>
 
 class CombatModel
 {

@@ -1,11 +1,12 @@
 #include <Combat/CombatView.hpp>
 
-#include <modules/Tweening.hpp>
-#include <modules/DebugRenderer.hpp>
+#include <Easing.hpp>
+#include <InputManager.hpp>
 
-#include <core/InputManager.hpp>
+#include <Debugger/DebugRenderer.hpp>
 
-#include <core/Utils.hpp>
+#include <Renderer/Renderables/ModelFactory.hpp>
+
 
 using namespace TLOT;
 
@@ -24,7 +25,7 @@ static bool PointInRect (float x, float y, glm::vec4 rect)
 
 // Public =>
 
-void CombatView::Update (RenderContext::Context ctx, Camera const & camera)
+void CombatView::Update (RenderContext ctx, Camera const & camera)
 {
 	m_delta = ctx.deltaTime;
 	std::map<ObjectID, glm::mat4> hoveredObjects = GetHoveredObjects ();
@@ -321,10 +322,10 @@ void CombatView::RegisterEnemiesActor (IndexedActorsTable enemies)
 	}
 }
 
-CombatView::CombatView (CombatViewListener * subscriber, TLOT::RenderContext & context, TLOT::Camera & camera, TLOT::RenderableManager & sceneManager, TLOT::RenderableManager & uiManager):
+CombatView::CombatView (CombatViewListener * subscriber, TLOT::RenderContext & context, TLOT::Camera & camera, TLOT::IRenderer & sceneRenderer, TLOT::IRenderer & uiRenderer):
 	m_subscriber {subscriber},
-	m_sceneManager {sceneManager},
-	m_uiManager {uiManager},
+	m_sceneRenderer {sceneRenderer},
+	m_uiRenderer {uiRenderer},
 	m_camera {camera},
 	m_context {context}
 {
@@ -348,14 +349,13 @@ CombatView::CombatView (CombatViewListener * subscriber, TLOT::RenderContext & c
 	m_primaryEnemyZ = 3.0f;
 	m_enemyScale    = 2.0f;
 
-	auto & assetManager = sceneManager.GetAssetManager ();
-	auto quadID = assetManager.GetQuadMeshID ();
-	auto quadMesh = assetManager.GetMesh (quadID);
-	quadMesh.material.diffuseTextures.push_back (assetManager.GetTextureID ("scene_table"));
-	Renderable table = RenderableManager {sceneManager.GetAssetManager (), sceneManager.GetRenderer ()}.Create (quadMesh, {});
+	auto table = ModelFactory::CreateSprite (sceneRenderer);
+	table.SetDiffuseTexture (0, AssetManager::Cache ("texture_table"));
 	table.SetRotation (glm::radians (glm::vec3 {90.0, 0.0, 0.0}));
 	table.SetPosition (glm::vec3 { 0.0, -0.4, 0.0});
 	table.SetScale (glm::vec3 {3.0, 3.0, 3.0});
+
+	//UIComponentManager::GenerateComponent<ClassicButton> (uiManager, glm::vec2 {width / 2, height / 2}, 0.0, glm::vec3{1.0, 0.0, 0.0});
 }
 
 // Private =>

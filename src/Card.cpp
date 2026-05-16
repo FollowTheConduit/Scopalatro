@@ -1,4 +1,4 @@
-#include <Combat/Card.hpp>
+#include <Card.hpp>
 
 #include <string>
 

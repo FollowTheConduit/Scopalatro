@@ -9,18 +9,15 @@
 #include <string>
 #include <string_view>
 
-#include <modules/Renderable.hpp>
-
-#include <opengl/RenderContext.hpp>
-
-#include <modules/Camera.hpp>
+#include <Renderer/IRenderer.hpp>
+#include <RenderContext.hpp>
 
 class CombatPresenter: public CombatViewListener, public CombatModelListener
 {
 public:
 	CombatView * GetView ();
 
-	CombatPresenter (TLOT::RenderContext & context, TLOT::Camera & camera, TLOT::RenderableManager & sceneManager, TLOT::RenderableManager & uiManager, CombatParams params);
+	CombatPresenter (TLOT::RenderContext & context, TLOT::Camera & camera, TLOT::IRenderer & sceneManager, TLOT::IRenderer & uiManager, CombatParams params);
 
 	void Begin ();
 
