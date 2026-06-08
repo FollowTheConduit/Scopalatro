@@ -34,14 +34,16 @@ public:
 	size_t EffectiveHandSize () { return m_handSize; }
 
 	std::string_view GetCardDescription (ObjectID card);
-	CombatModel (CombatModelListener * listener, IndexedCardTable cardTable);
+
+	void RegisterCard(ObjectID cardID, Card * card);
+	CombatModel (CombatModelListener * listener);
 
 private:
 	void PrintPiles ();
 
 	CharacterState player;
 
-	IndexedCardTable m_cardTable;
+	std::map<ObjectID, Card *> m_cardTable;
 
 	std::vector<ObjectID> m_drawPile; // all cards should originate from here
 

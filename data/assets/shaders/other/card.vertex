@@ -1,8 +1,6 @@
 #version 460 core
 layout (location = 0) in vec3 aPos;
-layout (location = 1) in vec3 aNormals;
-layout (location = 2) in vec3 aTangeants;
-layout (location = 3) in vec2 aTexCoords;
+layout (location = 1) in vec2 aTexCoords;
 
 struct TextureOffset {
     vec2 pos;
@@ -43,7 +41,6 @@ InstanceData getData ()
 uniform mat4 uProjection;
 uniform mat4 uView;
 
-out vec3 vNormals;
 out vec2 vBackTexCoords;
 out vec2 vSymbTexCoords;
 out vec3 vColor;
@@ -52,8 +49,6 @@ out int vInstanceID;
 
 void main()
 {
-	vNormals = aNormals;
-
     InstanceData data = getData ();
 	vec4 pos = uProjection * uView * data.matrix * vec4(aPos, 1.0);
 

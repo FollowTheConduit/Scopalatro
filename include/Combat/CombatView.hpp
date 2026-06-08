@@ -8,13 +8,16 @@
 #include <Combat/HandArea.hpp>
 #include <Combat/PlayArea.hpp>
 
-#include <BiTemporalState.hpp>
 #include <TaskManager.hpp>
 #include <TaskQueue.hpp>
 
+#include <Debugger/SceneInspector.hpp>
 
 #include <Renderer/Camera.hpp>
-#include <Renderer/IRenderer.hpp>
+#include <Renderer/Renderer.hpp>
+
+#include <RenderableObjects/CardModel.hpp>
+#include <RenderableObjects/HealthbarModel.hpp>
 
 #include <map>
 #include <memory>
@@ -32,36 +35,34 @@ struct DrawArea
 class CombatView
 {
 public:
-	void Update (TLOT::RenderContext ctx, TLOT::Camera const & camera);
+	void Init();
+	void Update();
+	void Render();
 
-	void DrawCards (std::vector<ObjectID> cards);
-	void DiscardCards (std::vector<ObjectID> cards);
-	void ExhaustCards (std::vector<ObjectID> cards);
-	void CaptureCards (std::vector<ObjectID> cards);
+	void DrawCards(std::vector<ObjectID> cards);
+	void DiscardCards(std::vector<ObjectID> cards);
+	void ExhaustCards(std::vector<ObjectID> cards);
+	void CaptureCards(std::vector<ObjectID> cards);
 
-	void DamageEntity (ObjectID entityID, int damage);
-	void HealEntity   (ObjectID entityID, int heal);
+	void DamageEntity(ObjectID entityID, int damage);
+	void HealEntity  (ObjectID entityID, int heal);
 
-	void SetPrimaryEnemy (ObjectID enemyID);
+	void SetPrimaryEnemy(ObjectID enemyID);
 
-	void RegisterCardsActor    (IndexedActorsTable cards);
-	void RegisterEnemiesActor (IndexedActorsTable enemies);
-	CombatView (CombatViewListener * subscriber, TLOT::RenderContext & context, TLOT::Camera & camera, TLOT::IRenderer & sceneManager, TLOT::IRenderer & uiManager);
+	void RegisterCardsActor(ObjectID cardID, Suit suit, CardValue value);
+	//void RegisterEnemiesActor(IndexedActorsTable enemies);
+	CombatView(CombatViewListener * subscriber, TLOT::RenderContext * context, TLOT::Renderer * renderer, TLOT::SceneInspector * inspector);
 
 private:
-	std::map<ObjectID, glm::mat4> GetHoveredObjects ();
-	TaskID GenerateMoveCardTask (ObjectID card, glm::vec3 targetPosition, glm::vec3 targetScale, float speed, float (*easingFunction)(float));
-
+	std::map<ObjectID, glm::mat4> GetHoveredObjects();
+	TaskID GenerateMoveCardTask(ObjectID card, glm::vec3 targetPosition, glm::vec3 targetScale, float speed, float(*easingFunction)(float));
 
 	// Pointers
 	CombatViewListener * m_subscriber;
 
-	TLOT::RenderContext & m_context;
-
-	TLOT::IRenderer & m_sceneRenderer;
-	TLOT::IRenderer & m_uiRenderer;
-	
-	TLOT::Camera & m_camera;
+	TLOT::RenderContext * m_context;
+	TLOT::Renderer * m_renderer;
+	TLOT::SceneInspector * m_inspector;
 
 	// States
 	double m_delta;
@@ -93,13 +94,13 @@ private:
 
 
 	// Tables
-	IndexedActorsTable m_cards;
-	IndexedActorsTable m_enemies;
+	std::map<ObjectID, CardModel> m_cards;
+	//IndexedActorsTable m_enemies;
+
+	std::unique_ptr<HealthbarModel> m_playerHealthbar;
 	
 
 	// Events
 	TaskManager m_taskManager;
-	TaskQueue   m_taskQueue    {m_taskManager};
-	//TaskQueue   m_hoverQueue   {m_taskManager};
-	//TaskQueue   m_discardQueue {m_taskManager};
+	TaskQueue   m_taskQueue {m_taskManager};
 };

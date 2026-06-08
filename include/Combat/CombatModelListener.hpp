@@ -1,7 +1,9 @@
 #pragma once
 
-#include <Combat/CombatHelper.hpp>
+#include <string>
 #include <vector>
+
+#include <Combat/CombatHelper.hpp>
 
 struct DamageContext;
 struct DeathContext;

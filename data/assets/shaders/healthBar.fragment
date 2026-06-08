@@ -1,0 +1,83 @@
+#version 460 core
+
+struct Quad
+{
+	vec2 pos;
+	vec2 scale;
+	float z;
+};
+
+struct Material
+{
+	float health;
+	float poison;
+	Quad  fullHealthBar;
+	Quad emptyHealthBar;
+	Quad  fullPoisonBar;
+	Quad emptyPoisonBar;
+};
+
+layout(std430, binding = 2) readonly buffer Materials {
+	Material materials[];
+};
+
+in vec3 vNormals;
+in vec2 vTexCoords;
+in flat int vMaterialIndex;
+
+out vec4 fragColor;
+
+uniform sampler2DArray uAtlas;
+
+vec4 getRGBA(Quad quad)
+{
+	vec2 vTexCoords = vTexCoords * quad.scale + quad.pos;
+	return texture(uAtlas, vec3 (vTexCoords, 0.0));
+}
+
+Material GetMaterial()
+{
+	return materials[vMaterialIndex];
+}
+
+vec2 GetCoords(Quad quad)
+{
+	return vTexCoords * quad.scale + quad.pos;
+}
+
+
+void main() {
+	vec4 colorRGBA = vec4 (0.0);
+	vec2 coords    = vec2 (0.0);
+
+	vec2 fullHealthBarCoords  = GetCoords(GetMaterial().fullHealthBar );
+	vec2 fullPoisonBarCoords  = GetCoords(GetMaterial().fullPoisonBar );
+	vec2 emptyHealthBarCoords = GetCoords(GetMaterial().emptyHealthBar);
+	vec2 emptyPoisonBarCoords = GetCoords(GetMaterial().emptyPoisonBar);
+
+	float uHealth = GetMaterial().health;
+	float uPoison = GetMaterial().poison;
+
+	coords = emptyHealthBarCoords;
+
+	if (uHealth >= vTexCoords.x)
+	{
+		coords = fullHealthBarCoords;
+		if (uPoison >= vTexCoords.x)
+		{
+			coords = fullPoisonBarCoords;
+		}
+	}
+	else if (uHealth < vTexCoords.x)
+	{
+		if (uPoison >= uHealth && uPoison > 0.0)
+		{
+			coords = emptyPoisonBarCoords;
+		}
+		else
+			coords = emptyHealthBarCoords;
+	}
+
+	colorRGBA = texture(uAtlas, vec3 (coords, 0.0));
+	fragColor = colorRGBA;
+}

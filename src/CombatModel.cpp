@@ -4,7 +4,7 @@
 
 #include <Combat/CombatModel.hpp>
 
-#include <core/Logger.hpp>
+#include <Core/Logger.hpp>
 
 using namespace TLOT;
 
@@ -213,12 +213,15 @@ std::string_view CombatModel::GetCardDescription (ObjectID card)
 	return std::string_view {"If you see this, I forgor to implement GetCardDescription (ObjectID Card)"};
 }
 
-CombatModel::CombatModel (CombatModelListener * listener, IndexedCardTable cardTable):
-	m_listener {listener},
-	m_cardTable {cardTable}
+void CombatModel::RegisterCard(ObjectID cardID, Card * card)
 {
-	for (auto & [ID, card] : m_cardTable)
-	{
-		m_drawPile.emplace_back (ID);
-	}
+	m_cardTable.emplace(cardID, card);
+
+	m_drawPile.emplace_back(cardID);
 }
+
+CombatModel::CombatModel (CombatModelListener * listener):
+	m_listener {listener}
+{
+}
+

@@ -1,6 +1,8 @@
 #pragma once
 
-#include <Combat/CombatHelper.hpp>	
+#include <Combat/CombatHelper.hpp>
+#include <RenderableObject.hpp>
+
 
 struct CombatViewListener
 {

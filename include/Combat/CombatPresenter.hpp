@@ -9,53 +9,60 @@
 #include <string>
 #include <string_view>
 
-#include <Renderer/IRenderer.hpp>
+#include <Debugger/SceneInspector.hpp>
+#include <Renderer/Renderer.hpp>
 #include <RenderContext.hpp>
 
 class CombatPresenter: public CombatViewListener, public CombatModelListener
 {
 public:
-	CombatView * GetView ();
+	
+	void Init();
+	void Update();
+	void Render();
 
-	CombatPresenter (TLOT::RenderContext & context, TLOT::Camera & camera, TLOT::IRenderer & sceneManager, TLOT::IRenderer & uiManager, CombatParams params);
+	void Begin(CombatParams params);
 
-	void Begin ();
+	CombatPresenter(TLOT::RenderContext * context, TLOT::Renderer * renderer, TLOT::SceneInspector * inspector);
 
 private:
 	// View events
 
-	void OnCardDropInPlayArea (ObjectID card) override;
+	void OnCardDropInPlayArea(ObjectID card) override;
 
-	void DebugDrawCard () override;
+	void DebugDrawCard() override;
 
-	ObjectID GenerateObject () override;
+	ObjectID GenerateObject() override;
 
 	// Model events
 	
-	void OnMessage (std::string const message) override;
+	void OnMessage(std::string const message) override;
 
-	void OnDiscardToDrawPile (std::vector<ObjectID> cards) override;
+	void OnDiscardToDrawPile(std::vector<ObjectID> cards) override;
 
-	void OnCardsDrawn     (std::vector<ObjectID> cards) override;
-	void OnCardsDiscarded (std::vector<ObjectID> cards) override;
+	void OnCardsDrawn    (std::vector<ObjectID> cards) override;
+	void OnCardsDiscarded(std::vector<ObjectID> cards) override;
 
-	void OnDamage () override;
-	void OnDeath  () override;
+	void OnDamage() override;
+	void OnDeath () override;
 
 	// Members
 
-	void PreparePlayerTurn ();
+	void PreparePlayerTurn();
+
+
+	TLOT::RenderContext * m_context;
+	TLOT::Renderer * m_renderer;
 
 	std::unique_ptr<CombatView>  m_view;
 	std::unique_ptr<CombatModel> m_model;
 
 	ObjectID m_nextID = 0;
 
-	IndexedCardTable     m_cardTable;
-	IndexedActorsTable   m_cardActorTable;
+	IndexedCardTable m_cardTable;
 
-	IndexedEnemyTable    m_enemyTable;
-	IndexedActorsTable   m_enemyActorTable;
+	IndexedEnemyTable m_enemyTable;
+	//IndexedActorsTable   m_enemyActorTable;
 
 	std::vector<ObjectID> m_cardsID;
 	std::vector<ObjectID> m_enemiesID;

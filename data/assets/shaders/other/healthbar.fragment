@@ -1,0 +1,83 @@
+#version 460 core
+
+struct InstanceData
+{
+	mat4 matrix;
+	vec3 color;
+	int textureOffset;
+	int textureCount;
+};
+
+struct TextureOffset {
+    vec2 pos;
+	vec2 scale;
+	float depth;
+	float _pad0;
+	float _pad1;
+};
+
+layout(std430, binding = 1) readonly buffer Instances {
+	InstanceData datas[];
+};
+
+layout(std430, binding = 2) readonly buffer TextureOffsets {
+	TextureOffset offsets[];
+};
+
+in vec2 vTexCoords;
+in flat int vInstanceID;
+out vec4 fragColor;
+
+uniform sampler2DArray uAtlas;
+
+uniform float uHealth; // health percentage relative to max hp
+uniform float uPoison; // poison percentage relative to max hp
+
+void main() {
+	InstanceData data = datas[vInstanceID];
+	vec4 colorRGB = vec4 (0.0);
+	vec2 coords   = vec2 (0.0);
+
+	TextureOffset emptyHealthBar = offsets[data.textureOffset + 0];
+	TextureOffset  fullHealthBar = offsets[data.textureOffset + 1];
+	TextureOffset emptyPoisonBar = offsets[data.textureOffset + 2];
+	TextureOffset  fullPoisonBar = offsets[data.textureOffset + 3];
+
+	vec2  emptyHealthBarCoords = texCoords *  emptyHealthBar.scale +  emptyHealthBar.pos;
+	vec2   fullHealthBarCoords = texCoords *   fullHealthBar.scale +   fullHealthBar.pos;
+	vec2  emptyPoisonBarCoords = texCoords *  emptyPoisonBar.scale +  emptyPoisonBar.pos;
+	vec2   fullPoisonBarCoords = texCoords *   fullPoisonBar.scale +   fullPoisonBar.pos;
+
+	coords = fullBarCoords;
+
+	if (uPoison >= uHealth)
+	{
+		if (uHealth < texCoords.x)
+		{
+			coords = fullPoisonBarCoords;
+		}
+		else if (uHealth >= texCoords.x)
+		{
+			coords = emptyPoisonBarCoords;
+		}
+	}
+	else if (uHealth > uPoison)
+	{
+		if (uPoison < texCoords.x)
+		{
+			coords = fullPoisonBar;
+		}
+		else if (uHealth < texCoords.x)
+		{
+			coords = fullHealthBarCoords;
+		}
+		else if (uHealth >= texCoords.x)
+		{
+			coords = emptyHealthBarCoords;
+		}
+	}
+
+	colorRGB = texture(uAtlas, vec3 (coords, 0.0));
+
+	fragColor = vec4(colorRGB, 1.0);
+}

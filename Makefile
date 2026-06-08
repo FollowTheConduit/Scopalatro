@@ -3,9 +3,12 @@ CXX      := g++
 CXXFLAGS := -std=c++23 -Wall -Wextra -Wno-unused-parameter -Ideps/TLOT/deps -Ideps/TLOT/deps/glad/include -Ideps/TLOT/include -Iinclude  -Ideps/TLOT/deps/imgui -Ideps/TLOT/deps/imgui/backends
 CXXFLAGS += -O0 -g
 
+LDFLAGS := 
+
 BIN_WINDOWS := bin/scopalatro.exe
+BIN_LINUX := bin/scopalatro
 LIBS_WINDOWS:= -ltetoEngine -lglfw3 -lgdi32 -lopengl32 -lstdc++exp
-LIBS_LINUX:= -ltetoEngine -lstdc++exp
+LIBS_LINUX:= -ltetoEngine -lglfw3 -lstdc++exp
 
 
 SRC := $(wildcard src/*.cpp)
@@ -25,7 +28,7 @@ OBJ := $(SRC:.cpp=.o)
 all : $(BIN)
 
 $(BIN) : $(OBJ)
-	$(CXX) $(OBJ) $(LIBDIRS) $(LIBS) -o $(BIN)
+	$(CXX) $(LDFLAGS) $(OBJ) $(LIBDIRS) $(LIBS) -o $(BIN)
 
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@

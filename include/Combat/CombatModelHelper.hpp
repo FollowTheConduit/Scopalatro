@@ -9,9 +9,9 @@
 #include <Card.hpp>
 
 
-using CardInventory = std::set<Card *>;
-using ItemInventory = int; // TODO <-- when items are implemented, do the thing
+using CardInventory = std::vector<Card>;
+using ItemInventory = std::vector<int>; // TODO <-- when items are implemented, do the thing
 
 using IndexedCardTable  = std::map<ObjectID, Card *>;
 using IndexedEnemyTable = std::map<ObjectID, Enemy *>;
-using IndexedItemTable  = int; // TODO <-- when items are implemented, do the thing
+using IndexedItemTable  = std::map<ObjectID, int>; // TODO <-- when items are implemented, do the thing

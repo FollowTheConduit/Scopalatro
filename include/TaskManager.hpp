@@ -20,24 +20,24 @@ enum class TaskResult
 	Return
 };
 
-using AsyncTask = std::function<TaskResult (TaskID ID, double progress, double deltaTime)>;
+using AsyncTask = std::function<TaskResult(TaskID ID, double progress, double deltaTime)>;
 
 class TaskManager
 {
 public:
-	TaskID RegisterTask (AsyncTask && callback);
+	TaskID RegisterTask(AsyncTask && callback);
 
-	void StartTask (TaskID taskID, double ms=0.0);
-	void StartTaskAfter (TaskID taskID, TaskID parentID, double ms=0.0);
-	void StartTaskOnDeath (TaskID taskID, TaskID parentID, double ms=0.0);
+	void StartTask(TaskID taskID, double ms=0.0);
+	void StartTaskAfter(TaskID taskID, TaskID parentID, double ms=0.0);
+	void StartTaskOnDeath(TaskID taskID, TaskID parentID, double ms=0.0);
 
-	void StopTask (TaskID taskID);
-	void PauseTask (TaskID taskID);
-	void ResumeTask (TaskID taskID);
+	void StopTask(TaskID taskID);
+	void PauseTask(TaskID taskID);
+	void ResumeTask(TaskID taskID);
 
-	bool IsTaskAlive (TaskID taskID);
+	bool IsTaskAlive(TaskID taskID);
 
-	void Update (double deltaTime);
+	void Update(double deltaTime);
 
 private:
 	struct TaskWrapper
@@ -61,11 +61,11 @@ private:
 
 	std::map<TaskID, TaskWrapper> m_tasks;
 	std::multimap<TaskID, TaskID> m_taskToParent;
-	TaskResult Evaluate (TaskID taskID, TaskWrapper & taskWrapper, double deltaTime);
+	TaskResult Evaluate(TaskID taskID, TaskWrapper & taskWrapper, double deltaTime);
 
 	std::vector<TaskExecutorNode> m_executionList;
 	std::map<TaskID, size_t> m_taskToIndex;
 
-	TaskID GenerateID ();
+	TaskID GenerateID();
 	TaskID m_nextID = 0;
 };

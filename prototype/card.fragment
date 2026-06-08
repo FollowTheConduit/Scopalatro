@@ -1,0 +1,25 @@
+#version 460 core
+
+struct Quad
+{
+	float x, y;
+	float w, h;
+	float z;
+}
+
+struct Material
+{
+	Quad symbol;
+	Quad background;
+	Quad back;
+};
+
+layout(std430, binding = 0) readonly buffer Matrices {
+	mat4 matrices[];
+}
+
+layout(std430, binding = 1) readonly buffer Materials {
+	Material material[];
+};
+
+out fragColor;
