@@ -1,0 +1,41 @@
+#version 460 core
+layout (location = 0) in vec3 aPos;
+layout (location = 1) in vec2 aTexCoords;
+
+struct InstanceData
+{
+	int matrixIndex;
+	int materialIndex;
+};
+
+layout(std430, binding = 0) readonly buffer Indices {
+	InstanceData indices[];
+};
+
+layout(std430, binding = 1) readonly buffer Transform {
+	mat4 matrix[];
+};
+
+InstanceData getIndices ()
+{
+    int index = gl_BaseInstance + gl_InstanceID;
+    return indices[index];
+}
+
+uniform mat4 uProjection;
+uniform mat4 uView;
+
+out vec2 vTexCoords;
+out int vMaterialIndex;
+
+void main()
+{
+    InstanceData indices = getIndices ();
+	mat4 model = matrix[indices.matrixIndex];
+	vec4 pos = uProjection * uView * model * vec4(aPos, 1.0);
+
+	vMaterialIndex = indices.materialIndex;
+	vTexCoords = aTexCoords;
+
+	gl_Position = pos;
+};
