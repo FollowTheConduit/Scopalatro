@@ -65,7 +65,7 @@ glm::vec3 HandArea::GetCardPos (ObjectID card)
 	float paddingX = -handSize * handSize + 95.0f;
 
 	float x = beginX + (width / 2) + (paddingX / 2) + transformedIndex * (cardSize + paddingX) + cardSize / 2;
-	float y = cardSize;
+	float y = cardSize / 3;
 	float z = index * 0.1f;
 
 	if (m_hoveredCard != InvalidObject && m_draggedCard == InvalidObject)
@@ -84,7 +84,7 @@ glm::vec3 HandArea::GetCardPos (ObjectID card)
 		}
 		else
 		{
-			y += GetCardSize (card).y / 2.0;
+			y = cardSize + (GetCardSize (card).y / 2.0);
 			x += GetCardSize (card).x / (4.0f * hoverFactor);
 		}
 	}

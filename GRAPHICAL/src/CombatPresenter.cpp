@@ -7,8 +7,7 @@ using namespace TLOT;
 
 void CombatPresenter::PreparePlayerTurn()
 {
-	m_model->ShuffleDeck();
-	m_model->Draw(m_model->EffectiveHandSize());
+	
 }
 
 CombatPresenter::CombatPresenter(TLOT::RenderContext * context, TLOT::Renderer * renderer, SceneInspector * inspector)
@@ -19,7 +18,7 @@ CombatPresenter::CombatPresenter(TLOT::RenderContext * context, TLOT::Renderer *
 
 void CombatPresenter::Init()
 {
-	m_view->Init();
+
 }
 
 void CombatPresenter::Update()
@@ -34,19 +33,18 @@ void CombatPresenter::Render()
 
 void CombatPresenter::Begin(CombatParams params)
 {
-	Init();
 	
 	for (auto card : params.playerCards)
 	{
 		auto cardID = m_nextID++;
 		
 		m_model->RegisterCard(cardID, card);
-		m_view->RegisterCard(cardID, card->GetSuit(), card->GetValue(), m_model->GetCardDescription(cardID));
+		m_view->RegisterCard(cardID, card->GetSuit(), card->GetValue(), m_model->GetCardName(cardID), m_model->GetCardDescription(cardID));
 		//m_cardActorTable.emplace(m_nextID++, CardModel{m_renderer, card.GetSuit(), card.GetValue()});
 	}
 	
-
-	PreparePlayerTurn();
+	m_view->Init();
+	m_model->Init();
 }
 
 void CombatPresenter::OnCardDropInPlayArea(ObjectID card)
@@ -84,14 +82,14 @@ void CombatPresenter::OnCardsDiscarded(std::vector<ObjectID> cards)
 	m_view->DiscardCards(cards);
 }
 
-void CombatPresenter::OnPlayerDamage(int newHP, int newMaxHP)
+void CombatPresenter::OnPlayerHealthChange(int newHP, int newMaxHP)
 {
 	m_view->UpdatePlayerHealth(newHP, newMaxHP);
 }
 
-void CombatPresenter::OnEnemyDamage(int amount)
+void CombatPresenter::OnEnemyHealthChange(int newHP, int newMaxHP)
 {
-
+	m_view->UpdateEnemyHealth(newHP, newMaxHP);
 }
 
 void CombatPresenter::OnPlayerDeath()
@@ -104,9 +102,10 @@ void CombatPresenter::OnEnemyDeath()
 	m_state = GameState::Shop;
 }
 
-void CombatPresenter::OnCardUpdate(ObjectID cardID, CardValue value, Suit suit)
+void CombatPresenter::OnCardUpdate(ObjectID cardID, CardValue value, Suit suit, std::string name, std::string description)
 {
 	m_view->UpdateCardModel(cardID, value, suit);
+	m_view->UpdateCardDescription(cardID, name, description);
 }
 
 void CombatPresenter::OnCardPlacedOnTable(ObjectID cardID)
@@ -114,7 +113,34 @@ void CombatPresenter::OnCardPlacedOnTable(ObjectID cardID)
 	m_view->PlaceCardOnTable(cardID);
 }
 
+void CombatPresenter::OnCardDrawToTable(std::vector<ObjectID> cards)
+{
+	m_view->DrawCardsToTable(cards);
+}
+
 void CombatPresenter::OnCardsCaptured(std::vector<ObjectID> cards)
 {
 	m_view->CaptureCards(cards);
+}
+
+void CombatPresenter::OnPlayerBeginTurn(int turnCount)
+{
+	m_view->EnableUserInput();
+	m_view->DisplayTurnNumber(turnCount);
+}
+
+void CombatPresenter::OnPlayerEndTurn()
+{
+	m_view->DisableUserInput();
+	m_model->BeginEnemyTurn();
+}
+
+void CombatPresenter::OnEnemyBeginTurn()
+{
+
+}
+
+void CombatPresenter::OnEnemyEndTurn()
+{
+	m_model->BeginPlayerTurn();
 }

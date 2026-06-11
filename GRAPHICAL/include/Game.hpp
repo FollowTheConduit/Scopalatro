@@ -11,6 +11,7 @@
 #include <Resources/Font.hpp>
 
 #include <Combat/CombatPresenter.hpp>
+#include <Deck.hpp>
 
 class Game
 {
@@ -54,7 +55,7 @@ private:
 	// Player Persistent Data
 	float m_playerHP;
 	float m_playerMaxHP;
-	std::vector<std::unique_ptr<Card>> m_playerDeck;
+	Deck m_playerDeck;
 
 
 

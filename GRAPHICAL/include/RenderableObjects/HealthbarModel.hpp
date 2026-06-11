@@ -8,9 +8,10 @@
 class HealthbarModel : public TLOT::CommonObject
 {
 public:
-	HealthbarModel(TLOT::Renderer * renderer, float health, float poison)
+	HealthbarModel(TLOT::Renderer * renderer, float health, float poison, bool right = true)
 	: CommonObject{renderer, TLOT::AssetManager::Cache("geometry_quad"), TLOT::AssetManager::Cache("material_healthbar")}
 	, m_text {renderer, TLOT::AssetManager::Cache("font_hh_light"), TLOT::AssetManager::Cache("font_hh_it"), TLOT::AssetManager::Cache("font_hh_bold")}
+	, m_right {right}
 	{
 		m_material.Set("health", health);
 		m_material.Set("poison", poison);
@@ -24,6 +25,7 @@ public:
 		height = quad.h * width / quad.w;
 
 		SetScale({width, height, 0.});
+		SetRotation(glm::radians(glm::vec3 {0.0, 0.0, 90.0}));
 
 		m_materialUpdateFlag = true;
 	}
@@ -84,11 +86,24 @@ public:
 		return m_poisonRatio;
 	}
 
+	float GetHeight()
+	{
+		return height;
+	}
+
+	float GetWidth()
+	{
+		return width;
+	}
+
 private:
 	void UpdateTextPosition()
 	{
 		auto position = GetPosition();
-		m_text.SetPosition(position + glm::vec3{width / 2 - m_text.GetWidth() / 2, height / 2 - m_text.GetWidth() / 2, 0.1});
+		if(m_right)
+			m_text.SetPosition(position + glm::vec3{height, (width - m_text.GetHeight()) / 2, 0.1});
+		else
+			m_text.SetPosition(position + glm::vec3{- m_text.GetWidth() - 5, (width - m_text.GetHeight()) / 2, 0.1});
 	}
 
 	TLOT::TextObject m_text;
@@ -100,4 +115,6 @@ private:
 
 	float m_hp = 0;
 	float m_maxhp = 0;
+
+	bool m_right;
 };

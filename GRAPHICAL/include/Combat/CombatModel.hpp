@@ -18,30 +18,37 @@
 class CombatModel
 {
 public:
-	void ShuffleDeck ();
+	void Init();
 
-	void Draw (size_t count);
-	void DrawUntilHandFull ();
-	void Discard (ObjectID cardID);
-	void Exhaust (ObjectID cardID);
-	void DiscardHand ();
+	void BeginPlayerTurn();
+	void BeginEnemyTurn();
 
-	void StartPlayerTurn ();
-	void EndPlayerTurn ();
+	void ShuffleDeck();
 
-	void PlayCard (ObjectID cardID);
+	void Draw(size_t count);
+	void DrawToTable(size_t count);
+	void DrawUntilHandFull();
+	void Discard(ObjectID cardID);
+	void Exhaust(ObjectID cardID);
+	void DiscardHand();
+
+	void StartPlayerTurn();
+	void EndPlayerTurn();
+
+	void PlayCard(ObjectID cardID);
 
 	void Damage(Entity * dst, uint32_t calculatedDamage, Entity * source, bool isEcho);
 	void Death(ObjectID source, ObjectID target);
 
 	void UpdateEntitiesState();
 
-	size_t EffectiveHandSize () { return m_handSize; }
+	size_t EffectiveHandSize() { return m_handSize; }
 
-	std::string GetCardDescription (ObjectID card);
+	std::string GetCardDescription(ObjectID card);
+	std::string GetCardName(ObjectID card);
 
 	void RegisterCard(ObjectID cardID, Card * card);
-	CombatModel (CombatModelListener * listener);
+	CombatModel(CombatModelListener * listener);
 
 	void ChangeCardSuit(ObjectID card, Suit suit);
 	void ChangeCardSuit(Card * card, Suit suit);
@@ -53,7 +60,7 @@ public:
 
 	ObjectID GetObjectID(Card * card)
 	{
-		if (m_cardCO.find(card) == m_cardCO.end())
+		if(m_cardCO.find(card) == m_cardCO.end())
 			return InvalidObject;
 
 		return m_cardCO.at(card);
@@ -61,19 +68,19 @@ public:
 
 	Card * GetCard(ObjectID card)
 	{
-		if (m_cardOC.find(card) == m_cardOC.end())
+		if(m_cardOC.find(card) == m_cardOC.end())
 			return nullptr;
 
 		return m_cardOC.at(card);
 	}
 
 private:
-	void PrintPiles ();
+	void PrintPiles();
 	std::vector<ObjectID> Convert(std::vector<Card *> cards)
 	{
 		std::vector<ObjectID> _converted;
 		
-		for (auto card : cards)
+		for(auto card : cards)
 		_converted.emplace_back(m_cardCO.at(card));
 		
 		return _converted;
@@ -83,7 +90,7 @@ private:
 	{
 		std::vector<Card *> _converted;
 		
-		for (auto card : cards)
+		for(auto card : cards)
 		_converted.emplace_back(m_cardOC.at(card));
 		
 		return _converted;

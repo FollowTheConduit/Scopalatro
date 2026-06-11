@@ -44,15 +44,19 @@ void CombatView::Init()
 	m_primaryEnemyZ = 3.0f;
 	m_enemyScale    = 2.0f;
 
-	m_table.beginY   = m_play.beginY + m_cardSize * 2.0;
+	m_table.beginY   = m_play.beginY + m_cardSize * 1.0;
 	m_table.beginX   = width / 2.0;
 	m_table.cardSize = m_cardSize;
 
 	m_playerHealthbar = std::make_unique<HealthbarModel>(m_renderer, 0.0, 0.0);
-	m_playerHealthbar->SetPosition({33, 733., 2.});
+	m_playerHealthbar->SetPosition({33, (height - m_playerHealthbar->GetWidth()) / 2, 2.}); // width instead because we rotate the bar internally
 	m_inspector->RegisterRenderableObject(m_playerHealthbar.get());
 
-	UpdatePlayerHealth(50, 50);
+	m_enemyHealthbar = std::make_unique<HealthbarModel>(m_renderer, 0.0, 0.0, false);
+	m_enemyHealthbar->SetPosition({ width - 33 - (m_enemyHealthbar->GetHeight() / 2), (height - m_enemyHealthbar->GetWidth()) / 2, 2.}); // width instead because we rotate the bar internally
+	m_inspector->RegisterRenderableObject(m_enemyHealthbar.get());
+
+	m_turnDisplay = std::make_unique<TextObject>(m_renderer, TLOT::AssetManager::Cache("font_hh_light"), TLOT::AssetManager::Cache("font_hh_it"), TLOT::AssetManager::Cache("font_hh_bold"));
 }
 
 void CombatView::Update()
@@ -81,6 +85,7 @@ void CombatView::Update()
 		m_hoverMap.Hover(id, m_delta);
 
 	m_hoveredCardID = InvalidObject;
+	ObjectID tooltipCandidate = InvalidObject;
 	for (auto & [id, _] : m_hand)
 	{
 		auto result = m_hoverMap.GetHover(id);
@@ -88,9 +93,27 @@ void CombatView::Update()
 		if (result >= HoverType::Short)
 			m_hoveredCardID = id;
 
-		if (result >= HoverType::Medium)
-			GenerateTooltip(m_hoveredCardID);
+		if (result >= HoverType::Medium && m_lastDraggedCardID == InvalidObject)
+			tooltipCandidate = id;
 	}
+
+	if (!m_canInput)
+	{
+		m_hoveredCardID = InvalidObject;
+		m_lastHoveredCardID = InvalidObject;
+
+		m_draggedCardID = InvalidObject;
+		m_lastDraggedCardID = InvalidObject;
+
+		tooltipCandidate = InvalidObject;
+
+		leftPressed = false;
+		leftReleased = false;
+		inPlayArea = false;
+	}
+
+	if (tooltipCandidate != InvalidObject)
+		GenerateTooltip(tooltipCandidate);
 
 	if (leftPressed && m_hoveredCardID != InvalidObject)
 	{
@@ -114,6 +137,9 @@ void CombatView::Update()
 	if (m_hoveredCardID != InvalidObject)
 	{
 		HoverCard();
+
+		if (m_hoveredCardID != m_lastHoveredCardID && m_lastHoveredCardID != InvalidObject)
+			DestroyTooltip(m_lastHoveredCardID);
 	}
 	else if (m_hoveredCardID == InvalidObject)
 	{
@@ -169,6 +195,8 @@ void CombatView::Render()
 	}
 
 	m_playerHealthbar->Render();
+	m_enemyHealthbar->Render();
+	m_turnDisplay->Render();
 }
 
 // Warning: right now, it can't be spammed, otherwise it will have a ugly effect
@@ -298,9 +326,31 @@ void CombatView::UpdatePlayerHealth(int targetHP, int targetMaxHP)
 	);
 }
 
-void CombatView::UpdateEnemyHealth(int hp, int maxhp)
+void CombatView::UpdateEnemyHealth(int targetHP, int targetMaxHP)
 {
+	auto oldHealth = m_enemyHealthbar->GetHealth();
 
+	float startHP    = oldHealth.first;
+	float startMaxHP = oldHealth.second;
+
+	m_taskManager.StartTask(
+		m_taskManager.RegisterTask([=, this] (TaskID ID, double progress, double deltaTime) mutable -> TaskResult
+		{
+			progress *= 0.5;
+
+			float curve = easeInOutCirc(std::min(progress, 1.0));
+
+			float currentHealth    = glm::mix(startHP ,   static_cast<float>(targetHP)   , curve);
+			float currentMaxHealth = glm::mix(startMaxHP, static_cast<float>(targetMaxHP), curve);
+
+			m_enemyHealthbar->SetHealth(currentHealth, static_cast<float>(targetMaxHP));
+
+			if (progress >= 1.0)
+				return TaskResult::Return;
+
+			return TaskResult::Yield;
+		})
+	);
 }
 
 void CombatView::UpdateCardModel(ObjectID cardId, CardValue value, Suit suit)
@@ -312,6 +362,19 @@ void CombatView::UpdateCardModel(ObjectID cardId, CardValue value, Suit suit)
 	actor.UpdateSymbol(suit, value);
 }
 
+void CombatView::UpdateCardDescription(ObjectID cardID, std::string name, std::string description)
+{
+	m_cardDescriptions[cardID] = std::pair<std::string, std::string> {name, description};
+
+	if (m_activeTooltips.find(cardID) == m_activeTooltips.end())
+	{
+		name = "{C:BLUE, S:ITALIC}" + m_cardDescriptions.at(cardID).first;
+		description = m_cardDescriptions.at(cardID).second;
+
+		m_activeTooltips.at(cardID)->SetText(name, description);
+	}
+}
+
 void CombatView::SetPrimaryEnemy(ObjectID enemyID)
 {
 	//m_primaryEnemyID = enemyID;
@@ -319,7 +382,7 @@ void CombatView::SetPrimaryEnemy(ObjectID enemyID)
 	//m_enemies[enemyID].SetPosition({m_primaryEnemyX, m_primaryEnemyY, m_primaryEnemyZ});
 }
 
-void CombatView::RegisterCard(ObjectID cardID, Suit suit, CardValue value, std::string description)
+void CombatView::RegisterCard(ObjectID cardID, Suit suit, CardValue value, std::string name, std::string description)
 {
 	CardModel actor {m_renderer, suit, value};
 
@@ -328,7 +391,7 @@ void CombatView::RegisterCard(ObjectID cardID, Suit suit, CardValue value, std::
 	actor.SetPivot({0.5f, 0.5f, 0.0f});
 
 	m_cards.emplace(cardID, std::move (std::move(actor)));
-	m_cardDescriptions.emplace(cardID, description);
+	m_cardDescriptions.emplace(cardID, std::pair<std::string, std::string> {name, description});
 
 	m_inspector->RegisterRenderableObject(&m_cards.at(cardID));
 }
@@ -426,11 +489,16 @@ void CombatView::GenerateTooltip(ObjectID cardID)
 	"{S:ITALIC, C:BLUE  }a "
 	"{S:NORMAL, C:YELLOW}bug.";
 
+	std::string name = "{C:BLUE, S:ITALIC}Placeholder";
+
 	if (m_cardDescriptions.find(cardID) != m_cardDescriptions.end())
-		description = m_cardDescriptions.at(cardID);
+	{
+		name = "{C:BLUE, S:ITALIC}" + m_cardDescriptions.at(cardID).first;
+		description = m_cardDescriptions.at(cardID).second;
+	}
 
 	m_activeTooltips.emplace(cardID, std::make_unique<ToolTipModel>(m_renderer));
-	m_activeTooltips.at(cardID)->SetText("{C:BLUE, S:ITALIC}Nom de la carte", description);
+	m_activeTooltips.at(cardID)->SetText(name, description);
 }
 
 void CombatView::DestroyTooltip(ObjectID cardID)
@@ -568,6 +636,19 @@ void CombatView::PlaceCardOnTable(ObjectID cardID)
 	RearangeTableCards();
 }
 
+void CombatView::DrawCardsToTable(std::vector<ObjectID> cards)
+{
+	for (auto cardID : cards)
+	{
+		if (m_cards.find(cardID) == m_cards.end())
+			continue;
+
+		m_table.AddCard(cardID);
+	}
+
+	RearangeTableCards();
+}
+
 void CombatView::RearangeTableCards()
 {
 	for (auto & [cardID, index] : m_table)
@@ -575,4 +656,52 @@ void CombatView::RearangeTableCards()
 		auto task = GenerateMoveCardTask(cardID, m_table.GetPos(cardID), m_table.GetScale(cardID), 1.0, easeInOutCirc);
 		m_taskQueue.PushCancel(cardID, task);
 	}
+}
+
+void CombatView::EnableUserInput()
+{
+	m_canInput = true;
+}
+
+void CombatView::DisableUserInput()
+{
+	m_canInput = false;
+}
+
+void CombatView::DisplayTurnNumber(int turnCount)
+{
+	m_turnDisplay->SetText("{S:BOLD,C:WHITE} Beginning Turn " + turnCount, 44);
+
+	float x = (m_context->GetViewport().width - m_turnDisplay->GetWidth()) / 2.0f;
+	float y = (m_context->GetViewport().height - m_turnDisplay->GetHeight()) / 2.0f;
+	glm::vec3 startingPosition {x, 2000.0f, 3.01f};
+	glm::vec3 intermediatePosition {x, y, 3.01f};
+	glm::vec3 targetPosition {x, -2000.0f, 3.01f};
+
+	auto taskID = m_taskManager.RegisterTask([=, this](TaskID task, double progress, double deltaTime) -> TaskResult
+	{
+		progress *= 0.25f;
+
+		float curve = easeInOutCirc(std::min(progress, 1.0));
+		
+		if (progress < 0.45f)
+		{
+			glm::vec3 currentPosition = glm::mix(startingPosition, intermediatePosition, curve);
+			m_turnDisplay->SetPosition(currentPosition);
+		}
+		else if (progress < 1.0f && progress > 0.55)
+		{
+			glm::vec3 currentPosition = glm::mix(intermediatePosition, targetPosition, curve);
+			m_turnDisplay->SetPosition(currentPosition);
+		}
+		else if (progress >= 1.0f)
+		{
+			m_turnDisplay->SetPosition(targetPosition);
+			return TaskResult::Return;
+		}
+
+		return TaskResult::Yield;
+	});
+
+	m_taskManager.StartTask(taskID, 1.03f);
 }

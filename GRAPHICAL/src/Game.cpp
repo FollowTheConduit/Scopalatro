@@ -41,18 +41,7 @@ void Game::Render()
 
 void Game::InitPlayerDeck()
 {
-	for (auto const & suit : { Suit::Bastoni, Suit::Coppe, Suit::Denari, Suit::Spada })
-	{
-		for (auto const & value : { 
-			CardValue::Asso,    CardValue::Due,     CardValue::Tre,
-			CardValue::Quattro, CardValue::Cinque,  CardValue::Sei,
-			CardValue::Sette,   CardValue::Cavallo, CardValue::Fante,
-			CardValue::Re
-		})
-		{
-			m_playerDeck.push_back(std::move(std::make_unique<Card>(Card::GetKey (suit, value), "BasicCarT", suit, value)));
-		}
-	}
+	m_playerDeck.BuildScopaDeck();
 }
 
 CombatParams Game::GenerateCombatParameters()
@@ -61,7 +50,7 @@ CombatParams Game::GenerateCombatParameters()
 	combatParams.playerHP    = m_playerHP;
 	combatParams.playerMaxHP = m_playerMaxHP;
 
-	for (auto & card : m_playerDeck)
+	for (auto & card : m_playerDeck.GetCards())
 	{
 		combatParams.playerCards.emplace_back(card.get());
 	}
@@ -256,7 +245,6 @@ void Game::SetupTechniques()
 	healthBarTechnique.mode     = ProjectionMode::Orthographic;
 	healthBarTechnique.program  = healthbarProgram;
 	healthBarTechnique.material = AssetManager::Cache("material_healthbar");
-	healthBarTechnique.enableDepthMask = false;
 	m_renderer->RegisterTechnique(healthBarTechnique, 99.0);
 
 	Technique glyphTechnique;
@@ -264,14 +252,12 @@ void Game::SetupTechniques()
 	glyphTechnique.program  = glyphProgram;
 	glyphTechnique.material = AssetManager::Cache("material_glyph");
 	glyphTechnique.useFontAtlas = true;
-	//glyphTechnique.enableDepthTest = false;
 	m_renderer->RegisterTechnique(glyphTechnique, 100.0);
 
 	Technique tooltipTechnique;
 	tooltipTechnique.mode     = ProjectionMode::Orthographic;
 	tooltipTechnique.program  = box9patchProgram;
 	tooltipTechnique.material = AssetManager::Cache("material_box9patch");
-	tooltipTechnique.enableDepthMask = false;
 	m_renderer->RegisterTechnique(tooltipTechnique, 98.0);
 }
 
@@ -279,7 +265,7 @@ void Game::SetupFonts()
 {
 	AssetManager::Cache("font_hh_light", AssetManager::LoadFont("data/assets/fonts/cooper-hewitt-fixed-for-windows-master/CooperHewitt-Light.ttf", m_ftlibrary));
 	AssetManager::Cache("font_hh_bold",  AssetManager::LoadFont("data/assets/fonts/cooper-hewitt-fixed-for-windows-master/CooperHewitt-Bold.ttf", m_ftlibrary));
-	AssetManager::Cache("font_hh_it",    AssetManager::LoadFont("data/assets/fonts/cooper-hewitt-fixed-for-windows-master/CooperHewitt-LightItalic.ttf", m_ftlibrary));
+	AssetManager::Cache("font_hh_it",    AssetManager::LoadFont("data/assets/fonts/cooper-hewitt-fixed-for-windows-master/CooperHewitt-BoldItalic.ttf", m_ftlibrary));
 
 	m_renderer->RegisterFont(AssetManager::Cache("font_hh_light"));
 	m_renderer->RegisterFont(AssetManager::Cache("font_hh_bold"));

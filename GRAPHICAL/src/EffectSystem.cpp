@@ -11,8 +11,8 @@ void DamageEffect::apply(EffectContext& ctx) {
     auto targets = ctx.getTargets(targetType);
     for(auto* target : targets) {
 		if(target) {
-			target->setLastAttackDamage(finalAmount);
-			target->takeDamage(finalAmount, ctx.source);
+			ctx.observer->Damage(target, finalAmount, ctx.source, false);
+			//target->takeDamage(finalAmount, ctx.source);
 
 			if(ctx.source) {
 				for(auto& r : ctx.source->getRelics()) {

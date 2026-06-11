@@ -49,12 +49,19 @@ public:
 	void UpdateEnemyHealth(int hp, int maxhp);
 
 	void UpdateCardModel(ObjectID cardId, CardValue value, Suit suit);
+	void UpdateCardDescription(ObjectID cardID, std::string name, std::string description);
 
 	void SetPrimaryEnemy(ObjectID enemyID);
 
-	void RegisterCard(ObjectID cardID, Suit suit, CardValue value, std::string description);
+	void RegisterCard(ObjectID cardID, Suit suit, CardValue value, std::string name, std::string description);
 
 	void PlaceCardOnTable(ObjectID cardID);
+	void DrawCardsToTable(std::vector<ObjectID> cards);
+
+	void EnableUserInput();
+	void DisableUserInput();
+
+	void DisplayTurnNumber(int turnCount);
 
 	//void RegisterEnemiesActor(IndexedActorsTable enemies);
 	CombatView(CombatViewListener * subscriber, TLOT::RenderContext * context, TLOT::Renderer * renderer, TLOT::SceneInspector * inspector);
@@ -76,6 +83,8 @@ private:
 	TLOT::SceneInspector * m_inspector;
 
 	// States
+	bool m_canInput = false;
+
 	double m_delta;
 
 	bool m_canHover = false;
@@ -106,13 +115,16 @@ private:
 	TableArea m_table;
 	PlayArea m_play;
 
-	std::map<ObjectID, std::string> m_cardDescriptions;
+	std::map<ObjectID, std::pair<std::string, std::string>> m_cardDescriptions;
 
 
 	// Models
 	std::map<ObjectID, CardModel> m_cards;
 	std::unique_ptr<HealthbarModel> m_playerHealthbar;
+	std::unique_ptr<HealthbarModel> m_enemyHealthbar;
 	std::map<ObjectID, std::unique_ptr<ToolTipModel>> m_activeTooltips;
+
+	std::unique_ptr<TLOT::TextObject> m_turnDisplay;
 
 	// Events
 	TaskManager m_taskManager;

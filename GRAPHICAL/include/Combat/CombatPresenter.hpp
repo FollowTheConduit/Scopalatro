@@ -44,15 +44,22 @@ private:
 	void OnCardsDiscarded(std::vector<ObjectID> cards) override;
 	void OnCardsCaptured(std::vector<ObjectID> cards) override;
 
-	void OnPlayerDamage(int newHP, int newMaxHP) override;
-	void OnEnemyDamage(int amount) override;
+	void OnPlayerHealthChange(int newHP, int newMaxHP) override;
+	void OnEnemyHealthChange(int newHP, int newMaxHP) override;
 
 	void OnPlayerDeath () override;
 	void OnEnemyDeath () override;
 
-	void OnCardUpdate(ObjectID cardId, CardValue value, Suit suit) override;
+	void OnCardUpdate(ObjectID cardId, CardValue value, Suit suit, std::string name, std::string description) override;
 
 	void OnCardPlacedOnTable(ObjectID cardID) override;
+	void OnCardDrawToTable(std::vector<ObjectID> cards) override;
+
+	void OnPlayerBeginTurn(int turnCount) override;
+	void OnPlayerEndTurn() override;
+
+	void OnEnemyBeginTurn() override;
+	void OnEnemyEndTurn() override;
 
 	// Members
 

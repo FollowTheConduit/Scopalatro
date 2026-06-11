@@ -15,17 +15,7 @@ public:
 	ToolTipModel(TLOT::Renderer * renderer)
 	: CommonObject{renderer, TLOT::AssetManager::Cache("geometry_quad"), TLOT::AssetManager::Cache("material_box9patch")}
 	{
-		//m_material.Set("health", health);
-		//m_material.Set("poison", poison);
-		//m_material.Set("fullHealthBar",  renderer->Quad(TLOT::AssetManager::Cache("texture_healthbar_full")));
-		//m_material.Set("emptyHealthBar", renderer->Quad(TLOT::AssetManager::Cache("texture_healthbar_empty")));
-		//m_material.Set("fullPoisonBar",  renderer->Quad(TLOT::AssetManager::Cache("texture_poisonbar_full")));
-		//m_material.Set("emptyPoisonBar", renderer->Quad(TLOT::AssetManager::Cache("texture_poisonbar_empty")));
 
-		//auto quad = renderer->Quad(TLOT::AssetManager::Cache("texture_healthbar_full"));
-		//m_materialUpdateFlag = true;
-
-		std::cout << "TooltipModel generated with material index = " << m_instance.materialIndex << "\n";
 	}
 
 	void SetText(std::string formattedName, std::string formattedDescription)

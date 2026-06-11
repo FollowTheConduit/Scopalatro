@@ -8,6 +8,41 @@
 
 using namespace TLOT;
 
+void CombatModel::Init()
+{
+	m_player = std::make_unique<Entity>("player", 50);
+	m_enemy = std::make_unique<Enemy>("Badalisk", 50, 0.5f);
+
+	m_listener->OnPlayerHealthChange(m_player->getHp(), m_player->getMaxHp());
+	m_listener->OnEnemyHealthChange(m_enemy->getHp(), m_enemy->getMaxHp());
+
+	ShuffleDeck();
+	DrawToTable(3);
+	BeginPlayerTurn();
+}
+
+void CombatModel::BeginPlayerTurn()
+{
+	turn++;
+	m_listener->OnPlayerBeginTurn(turn);
+
+	// update statuses
+
+	if (turn == 1)
+		Draw(3);
+
+	else
+		Draw(1);
+}
+
+void CombatModel::BeginEnemyTurn()
+{
+	m_listener->OnEnemyBeginTurn();
+
+	// play enemy turn here
+}
+
+
 void CombatModel::PrintPiles()
 {
 	std::string line = "(";
@@ -50,6 +85,36 @@ void CombatModel::ShuffleDeck()
 	m_discardPile.clear();
 
 	m_drawPile = cards;
+
+	PrintPiles();
+}
+
+void CombatModel::DrawToTable(size_t count)
+{
+	std::vector<Card *> drawnCards;
+
+	while(drawnCards.size() < std::min(count, m_maxHandSize))
+	{
+		if(m_drawPile.empty())
+		{
+			ShuffleDeck();
+
+			if(m_drawPile.empty())
+			{
+				m_listener->OnMessage("draw_pile_empty");
+				break;
+			}
+		}
+
+		auto card = m_drawPile.back();
+		m_drawPile.pop_back();
+
+		m_table.push_back(card);
+
+		drawnCards.push_back(card);
+	}
+
+	m_listener->OnCardDrawToTable(Convert(drawnCards));
 
 	PrintPiles();
 }
@@ -260,6 +325,9 @@ void CombatModel::PlayCard(ObjectID cardID)
 			<< std::endl;
         }
 
+		auto it = std::find(m_hand.begin(), m_hand.end(), card);
+		m_hand.erase(it);
+
 		captured.emplace_back(card);
 		m_listener->OnCardsCaptured(Convert(captured));
     }
@@ -270,34 +338,27 @@ void CombatModel::PlayCard(ObjectID cardID)
 
 		auto it = std::find(m_hand.begin(), m_hand.end(), card);
 		m_hand.erase(it);
-
+		
 		m_listener->OnCardPlacedOnTable(GetObjectID(card));
     }
-
-
-	//bool exhaust = false;
-	//if(exhaust)
-	//{
-	//	Exhaust(cardID);
-	//}
-	//else
-	//{
-	//	Discard(cardID);
-	//}
+	
+	// numerically end turn here
+	m_listener->OnPlayerEndTurn();
 }
 
 void CombatModel::Damage(Entity * dst, uint32_t calculatedDamage, Entity * source, bool isEcho)
 {
 	// Resolve effects and statuses
+	dst->setLastAttackDamage(calculatedDamage);
 	dst->takeDamage(calculatedDamage, source, isEcho);
 
 	if(dst == m_player.get())
 	{
-		m_listener->OnPlayerDamage(dst->getHp(), dst->getMaxHp());
+		m_listener->OnPlayerHealthChange(dst->getHp(), dst->getMaxHp());
 	}
 	else
 	{
-		m_listener->OnEnemyDamage(0);
+		m_listener->OnEnemyHealthChange(dst->getHp(), dst->getMaxHp());
 	}
 
 }
@@ -325,6 +386,14 @@ std::string CombatModel::GetCardDescription(ObjectID card)
 		return "invalid cardID";
 
 	return m_cardOC.at(card)->GetDescription();
+}
+
+std::string CombatModel::GetCardName(ObjectID card)
+{
+	if(m_cardOC.find(card) == m_cardOC.end())
+		return "invalid cardID";
+
+	return m_cardOC.at(card)->GetName();
 }
 
 void CombatModel::RegisterCard(ObjectID cardID, Card * card)
@@ -377,7 +446,7 @@ void CombatModel::ChangeCardSuit(ObjectID cardID, Suit suit)
 void CombatModel::ChangeCardSuit(Card * card, Suit suit)
 {
 	card->SetSuit(suit);
-	m_listener->OnCardUpdate(GetObjectID(card), card->GetValue(), card->GetSuit());
+	m_listener->OnCardUpdate(GetObjectID(card), card->GetValue(), card->GetSuit(), card->GetName(), card->GetDescription());
 }
 
 

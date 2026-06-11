@@ -52,20 +52,18 @@ std::string Card::GetName() const
 
 std::string Card::GetDescription() const
 {
-	return description;
+	return GetEffectsSummary() + "\nWill capture for {C:RED,S:BOLD}" + std::to_string(GetNumericValue());
 }
 
 std::string Card::GetEffectsSummary() const
 {
-	//std::string result;
-	//for (const auto& e : effects)
-	//{
-	//	if (!result.empty()) result += ", ";
-	//	result += e->getDescription();
-	//}
-	//return result;
-
-	return "If you see this there is a bug";
+	std::string result;
+	for (const auto& e : m_effects)
+	{
+		if (!result.empty()) result += ", ";
+		result += e->getDescription();
+	}
+	return result;
 }
 
 std::string Card::GetKey () const
