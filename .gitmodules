@@ -1,3 +1,0 @@
-[submodule "deps/TLOT"]
-	path = deps/TLOT
-	url = git@github.com:DIO6150/TLOT.git

@@ -26,7 +26,7 @@ public:
 private:
     void drawPhase();
     void displayState() const;
-    int playerSelectCard();
+    int  playerSelectCard();
     void resolvePlay(int cardIdx);
     void enemyTurnPhase();
     void endTurn();

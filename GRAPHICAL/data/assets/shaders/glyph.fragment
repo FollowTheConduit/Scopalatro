@@ -1,0 +1,56 @@
+#version 460 core
+
+struct Quad
+{
+	vec2 pos;
+	vec2 scale;
+	float z;
+};
+
+struct Material
+{
+	Quad glyph;
+	vec3 color;
+};
+
+layout(std430, binding = 2) readonly buffer Materials {
+	Material materials[];
+};
+
+in vec3 vNormals;
+in vec2 vTexCoords;
+in flat int vMaterialIndex;
+
+out vec4 fragColor;
+
+uniform sampler2DArray uGlyphAtlas;
+
+vec4 getRGBA(Quad quad)
+{
+	vec2 halfPixel = vec2(0.05) / 2048;
+	//vec2 halfPixel = vec2(0.0);
+	vec2 newTexCoords = vec2(vTexCoords.x, 1 - vTexCoords.y);
+	
+	vec2 minUV = quad.pos + halfPixel;
+    vec2 maxUV = quad.pos + quad.scale - halfPixel;
+
+	vec2 texCoords = mix(minUV, maxUV, newTexCoords);
+	return texture(uGlyphAtlas, vec3(texCoords, quad.z));
+}
+
+Material GetMaterial()
+{
+	return materials[vMaterialIndex];
+}
+
+vec2 GetCoords(Quad quad)
+{
+	return vTexCoords * quad.scale + quad.pos;
+}
+
+
+void main()
+{
+	float alpha = getRGBA(GetMaterial().glyph).r;
+	fragColor = vec4(GetMaterial().color, alpha);
+}
