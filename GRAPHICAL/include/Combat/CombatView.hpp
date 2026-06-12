@@ -42,6 +42,7 @@ public:
 		CombatViewListener * subscriber,
 		TLOT::RenderContext * context,
 		TLOT::Renderer * renderer,
+		TaskManager & manager,
 		TLOT::SceneInspector * inspector
 	);
 	CardModel * RegisterCard(Card * card);
@@ -51,17 +52,18 @@ public:
 	void Update();
 	void Render();
 
-	TaskID DrawCardsToHand(std::vector<CardModel *> cards);
-	TaskID DrawCardsToTable(std::vector<CardModel *> cards);
-	TaskID DiscardCards(std::vector<CardModel *> cards);
-	TaskID CaptureCards(std::vector<CardModel *> cards);
-	TaskID ExhaustCards(std::vector<CardModel *> cards);
-	TaskID PlaceCardOnTable(CardModel * card);
-	TaskID UpdatePlayerHealth(int hp, int maxhp);
-	TaskID UpdateEnemyHealth(int hp, int maxhp);
-	TaskID DisplayTurnNumber(int turnCount);
-	TaskID EnableUserInput();
-	TaskID DisableUserInput();
+	std::function<TaskID()> DrawCardsToHand(std::vector<CardModel *> cards);
+	std::function<TaskID()> DrawCardsToTable(std::vector<CardModel *> cards);
+	std::function<TaskID()> DiscardCards(std::vector<CardModel *> cards);
+	std::function<TaskID()> CaptureCards(std::vector<CardModel *> cards);
+	std::function<TaskID()> ExhaustCards(std::vector<CardModel *> cards);
+	std::function<TaskID()> PlaceCardOnTable(CardModel * card);
+	std::function<TaskID()> UpdatePlayerHealth(int hp, int maxhp);
+	std::function<TaskID()> UpdateEnemyHealth(int hp, int maxhp);
+	std::function<TaskID()> DisplayTurnNumber(int turnCount);
+	std::function<TaskID()> DisplayEnemyTurn();
+	std::function<TaskID()> EnableUserInput();
+	std::function<TaskID()> DisableUserInput();
 
 
 
@@ -132,7 +134,7 @@ private:
 
 
 	// Events
-	TaskManager m_taskManager;
+	TaskManager & m_taskManager;
 	TaskQueue   m_taskQueue {m_taskManager};
 
 	TaskID      m_dragTask;

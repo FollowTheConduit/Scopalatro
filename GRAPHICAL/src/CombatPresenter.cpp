@@ -8,7 +8,7 @@ using namespace TLOT;
 CombatPresenter::CombatPresenter(TLOT::RenderContext * context, TLOT::Renderer * renderer, SceneInspector * inspector)
 {
 	m_model = std::make_unique<CombatModel> (this);
-	m_view  = std::make_unique<CombatView>  (this, context, renderer, inspector);
+	m_view  = std::make_unique<CombatView>  (this, context, renderer, m_taskManager, inspector);
 }
 
 void CombatPresenter::Init()
@@ -18,6 +18,18 @@ void CombatPresenter::Init()
 
 void CombatPresenter::Update()
 {
+	if (m_blockingAnimation == SentinelTask || !m_taskManager.IsTaskAlive(m_blockingAnimation))
+	{
+		while (!m_animationStack.empty())
+		{
+			auto animation = m_animationStack.at(0);
+			m_blockingAnimation = animation();
+			m_animationStack.erase(m_animationStack.begin());
+
+			break;
+		}
+	}
+
 	m_view->Update();
 }
 
@@ -68,22 +80,22 @@ void CombatPresenter::OnMessage(std::string const message)
 
 void CombatPresenter::OnCardsDrawnToHand(std::vector<Card *> cards)
 {
-	m_view->DrawCardsToHand(Convert(cards));
+	m_animationStack.push_back(m_view->DrawCardsToHand(Convert(cards)));
 }
 
 void CombatPresenter::OnCardsDrawnToTable(std::vector<Card *> cards)
 {
-	m_view->DrawCardsToTable(Convert(cards));
+	m_animationStack.push_back(m_view->DrawCardsToTable(Convert(cards)));
 }
 
 void CombatPresenter::OnCardsDiscarded(std::vector<Card *> cards)
 {
-	m_view->DiscardCards(Convert(cards));
+	m_animationStack.push_back(m_view->DiscardCards(Convert(cards)));
 }
 
 void CombatPresenter::OnCardsCaptured(std::vector<Card *> cards)
 {
-	m_view->CaptureCards(Convert(cards));
+	m_animationStack.push_back(m_view->CaptureCards(Convert(cards)));
 }
 
 void CombatPresenter::OnCardUpdate(Card * card)
@@ -95,18 +107,18 @@ void CombatPresenter::OnCardUpdate(Card * card)
 void CombatPresenter::OnCardPlacedOnTable(Card * card)
 {
 	auto actor = Convert(card);
-	if (actor) m_view->PlaceCardOnTable(actor);
+	if (actor) m_animationStack.push_back(m_view->PlaceCardOnTable(actor));
 }
 
 void CombatPresenter::OnPlayerBeginTurn(int turnCount)
 {
-	m_view->EnableUserInput();
-	m_view->DisplayTurnNumber(turnCount);
+	m_animationStack.push_back(m_view->DisplayTurnNumber(turnCount));
+	m_animationStack.push_back(m_view->EnableUserInput());
 }
 
 void CombatPresenter::OnPlayerHealthChange(int newHP, int newMaxHP)
 {
-	m_view->UpdatePlayerHealth(newHP, newMaxHP);
+	m_animationStack.push_back(m_view->UpdatePlayerHealth(newHP, newMaxHP));
 }
 
 void CombatPresenter::OnPlayerDeath()
@@ -116,18 +128,18 @@ void CombatPresenter::OnPlayerDeath()
 
 void CombatPresenter::OnPlayerEndTurn()
 {
-	m_view->DisableUserInput();
+	m_animationStack.push_back(m_view->DisableUserInput());
 	m_model->BeginEnemyTurn();
 }
 
 void CombatPresenter::OnEnemyBeginTurn()
 {
-
+	m_animationStack.push_back(m_view->DisplayEnemyTurn());
 }
 
 void CombatPresenter::OnEnemyHealthChange(int newHP, int newMaxHP)
 {
-	m_view->UpdateEnemyHealth(newHP, newMaxHP);
+	m_animationStack.push_back(m_view->UpdateEnemyHealth(newHP, newMaxHP));
 }
 
 void CombatPresenter::OnEnemyDeath()

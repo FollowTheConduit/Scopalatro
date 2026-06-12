@@ -23,6 +23,10 @@ void HandArea::RemoveCard (CardModel * card)
 	}
 
 	m_hand.erase (card);
+	if (card == m_hoveredCard)   m_hoveredCard = nullptr;
+	if (card == m_draggedCard)   m_draggedCard = nullptr;
+	if (card == m_resolvingCard) m_resolvingCard = nullptr;
+
 	RecalculateIndices ();
 	
 	if (m_nextIndex != 0) m_nextIndex--;
@@ -41,9 +45,15 @@ glm::vec3 HandArea::GetCardPos (CardModel * card)
 
 	float handSize = (float)GetHandSize ();
 
-	if (m_draggedCard)
+	if (m_draggedCard || m_resolvingCard)
 	{
-		auto draggedCardIndex = m_hand.at (m_draggedCard);
+		size_t draggedCardIndex;
+		
+		if (m_draggedCard)
+			draggedCardIndex = m_hand.at (m_draggedCard);
+		else
+			draggedCardIndex = m_hand.at (m_resolvingCard);
+
 		handSize -= 1.0f;
 	
 		if (index < draggedCardIndex)
@@ -56,7 +66,7 @@ glm::vec3 HandArea::GetCardPos (CardModel * card)
 		}
 		else
 		{
-			return {0.0, 0.0, -1000.0};
+			return card->GetPosition();
 		}
 	}
 
@@ -68,7 +78,7 @@ glm::vec3 HandArea::GetCardPos (CardModel * card)
 	float y = cardSize / 3;
 	float z = index * 0.1f;
 
-	if (m_hoveredCard && !m_draggedCard)
+	if (m_hoveredCard && !m_draggedCard && !m_resolvingCard)
 	{
 		auto hoveredCardIndex = m_hand.at (m_hoveredCard);
 	
@@ -119,8 +129,16 @@ void HandArea::SetHover (CardModel * card)
 
 void HandArea::SetDrag (CardModel * card)
 {
-	m_draggedCard = card;
 	m_hoveredCard = nullptr;
+	m_draggedCard = card;
+	m_resolvingCard = nullptr;
+}
+
+void HandArea::SetResolve (CardModel * card)
+{
+	m_draggedCard = nullptr;
+	m_hoveredCard = nullptr;
+	m_resolvingCard = card;
 }
 
 void HandArea::RecalculateIndices ()

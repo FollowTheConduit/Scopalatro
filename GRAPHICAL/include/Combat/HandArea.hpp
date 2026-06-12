@@ -35,6 +35,7 @@ public:
 
 	void SetHover(CardModel * card);
 	void SetDrag(CardModel * card);
+	void SetResolve(CardModel * card);
 	auto begin() {return m_hand.begin(); }
 	auto end  () {return m_hand.end  (); }
 
@@ -45,6 +46,7 @@ private:
 
 	CardModel * m_hoveredCard = nullptr;
 	CardModel * m_draggedCard = nullptr;
+	CardModel * m_resolvingCard = nullptr;
 
 	size_t m_nextIndex = 0;
 };

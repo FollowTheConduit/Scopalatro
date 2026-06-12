@@ -36,6 +36,7 @@ public:
 	void ResumeTask(TaskID taskID);
 
 	bool IsTaskAlive(TaskID taskID);
+	bool IsTaskInfant(TaskID taskID);
 
 	void Update(double deltaTime);
 

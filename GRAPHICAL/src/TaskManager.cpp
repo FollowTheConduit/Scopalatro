@@ -81,6 +81,12 @@ bool TaskManager::IsTaskAlive(TaskID taskID)
 	return !m_executionList[index].dead;
 }
 
+bool TaskManager::IsTaskInfant(TaskID taskID)
+{
+	if (m_tasks.contains(taskID) && !m_taskToIndex.contains(taskID)) return true;
+	return false;
+}
+
 void TaskManager::Update(double deltaTime)
 {
 	std::vector<size_t> markedForDeletion;

@@ -65,5 +65,7 @@ private:
 	std::vector<CardModel *> Convert(std::vector<Card *> cards);
 
 	TaskManager m_taskManager;
-	std::vector<std::function<TaskID()>> m_blockingAnimationStack;
+
+	std::vector<std::function<TaskID()>> m_animationStack;
+	TaskID m_blockingAnimation = SentinelTask;
 };

@@ -23,10 +23,11 @@ static bool PointInRect(float x, float y, glm::vec4 rect)
 
 // Public =>
 
-CombatView::CombatView(CombatViewListener * subscriber, TLOT::RenderContext * context, Renderer * renderer, TLOT::SceneInspector * inspector)
+CombatView::CombatView(CombatViewListener * subscriber, TLOT::RenderContext * context, Renderer * renderer, TaskManager & taskManager, TLOT::SceneInspector * inspector)
 	: m_subscriber {subscriber}
 	, m_context {context}
 	, m_renderer {renderer}
+	, m_taskManager {taskManager}
 	, m_inspector {inspector}
 {
 
@@ -261,234 +262,324 @@ void CombatView::Render()
 }
 
 // Warning: right now, it can't be spammed, otherwise it will have a ugly effect
-TaskID CombatView::DrawCardsToHand(std::vector<CardModel *> cards)
+std::function<TaskID()> CombatView::DrawCardsToHand(std::vector<CardModel *> cards)
 {
 	if(cards.empty())
-		return;
+		return [] () { return SentinelTask; };
 
-	std::map<CardModel *, size_t> handCopy; 
-	handCopy.insert(m_hand.begin(), m_hand.end());
 
-	for(auto actor : cards)
+	return [this, cards]()
 	{
-		m_hand.AddCard(actor);
-	}
-
-
-	// Rearange hand
-	for (auto & [actor, index] : handCopy)
-	{
-		auto task = GenerateMoveCardTask(actor, m_hand.GetCardPos(actor), m_hand.GetCardSize(actor), 1.0f, easeInOutCirc);
-		m_taskQueue.PushCancel(reinterpret_cast<uint64_t>(actor), task);
-	}
-
-	int index = 0;
-	double timeOffset = handCopy.empty() ? 1.0 : 0.0;
-	TaskID task;
-	for (auto & actor : cards)
-	{
-		actor->SetPosition({ -100 + index * m_cardSize, m_context->GetViewport().height + m_cardSize * 5, 0.0 });
-		task = GenerateMoveCardTask(actor, m_hand.GetCardPos(actor), m_hand.GetCardSize(actor), 1.0f, easeInOutCirc);
-		m_taskQueue.PushCancel(reinterpret_cast<uint64_t>(actor), task, timeOffset + index * 0.25);
-		++index;
-	}
-
-	return task;
-
-	//m_modelAnimationStack.push_back(task); // we wait for this one to finish before we can start another one
-
-	//RearangeHandCards();
+		std::map<CardModel *, size_t> handCopy; 
+		handCopy.insert(m_hand.begin(), m_hand.end());
+	
+		for(auto actor : cards)
+		{
+			m_hand.AddCard(actor);
+		}
+	
+		// Rearange hand
+		for (auto & [actor, index] : handCopy)
+		{
+			auto task = GenerateMoveCardTask(actor, m_hand.GetCardPos(actor), m_hand.GetCardSize(actor), 1.0f, easeInOutCirc);
+			m_taskQueue.PushCancel(reinterpret_cast<uint64_t>(actor), task);
+		}
+	
+		int index = 0;
+		double timeOffset = handCopy.empty() ? 0.05 : 0.0;
+		TaskID task;
+		for (auto & actor : cards)
+		{
+			actor->SetPosition({ -100 + index * m_cardSize, m_context->GetViewport().height + m_cardSize * 5, 0.0 });
+			task = GenerateMoveCardTask(actor, m_hand.GetCardPos(actor), m_hand.GetCardSize(actor), 1.0f, easeInOutCirc);
+			m_taskQueue.PushCancel(reinterpret_cast<uint64_t>(actor), task, timeOffset + index * 0.25);
+			++index;
+		}
+	
+		return task;
+	};
 }
 
-TaskID CombatView::DrawCardsToTable(std::vector<CardModel *> cards)
+std::function<TaskID()> CombatView::DrawCardsToTable(std::vector<CardModel *> cards)
 {
 	if(cards.empty())
-		return;
+		return [] () { return SentinelTask; };
 
-	for (auto actor : cards)
+
+	return [this, cards] ()
 	{
-		m_table.AddCard(actor);
-	}
-
-	return RearangeTableCards();
+		for (auto actor : cards)
+		{
+			m_table.AddCard(actor);
+		}
+	
+		return RearangeTableCards();
+	};
 }
 
-TaskID CombatView::DiscardCards(std::vector<CardModel *> cards)
+std::function<TaskID()> CombatView::DiscardCards(std::vector<CardModel *> cards)
 {
 	if(cards.empty())
-		return;
+		return [] () { return SentinelTask; };
 
 	// TODO : implement discard
 
-	return SentinelTask;
+	return [] () { return SentinelTask; };
 }
 
-TaskID CombatView::CaptureCards(std::vector<CardModel *> cards)
-{
-	TaskID lastTaskID;
-	size_t index = 0; // ideally we sort cards by distance to target so we get more of a fan effect
-	for(auto actor : cards)
-	{
-		lastTaskID = GenerateMoveCardTask(actor, glm::vec3{200.0, 1000.0, 1.0}, glm::vec3{m_cardSize, m_cardSize, 1.0}, 3.0f, easeInOutCirc);
-		m_taskQueue.PushCancel(reinterpret_cast<uint64_t>(actor), lastTaskID, 0.5 * index);
-		index++;
-
-		m_table.RemoveCard(actor); // remove the capture cards
-		m_hand.RemoveCard(actor);  // remove the capturing card
-	}
-
-	return RearangeTableCards();
-}
-
-TaskID CombatView::ExhaustCards(std::vector<CardModel *> cards)
+std::function<TaskID()> CombatView::CaptureCards(std::vector<CardModel *> cards)
 {
 	if(cards.empty())
-		return;
+		return [] () { return SentinelTask; };
+
+	return [this, cards]()
+	{
+		TaskID lastTaskID;
+		size_t index = 0; // ideally we sort cards by distance to target so we get more of a fan effect
+		for(auto actor : cards)
+		{
+			lastTaskID = GenerateMoveCardTask(actor, glm::vec3{200.0, 1000.0, 1.0}, glm::vec3{m_cardSize, m_cardSize, 1.0}, 3.0f, easeInOutCirc);
+			m_taskQueue.PushCancel(reinterpret_cast<uint64_t>(actor), lastTaskID, 0.5 * index);
+			index++;
+			
+			m_table.RemoveCard(actor); // remove the capture cards
+			m_hand.RemoveCard(actor);  // remove the capturing card
+		}
+		
+		return RearangeTableCards();
+	};
+}
+
+std::function<TaskID()> CombatView::ExhaustCards(std::vector<CardModel *> cards)
+{
+	if(cards.empty())
+		return [] () { return SentinelTask; };
 
 	// TODO : implement exhaust
 
-	return SentinelTask;
+	return [] () { return SentinelTask; };
 }
 
-TaskID CombatView::PlaceCardOnTable(CardModel * actor)
+std::function<TaskID()> CombatView::PlaceCardOnTable(CardModel * actor)
 {
-	m_hand.RemoveCard(actor);
-	m_table.AddCard(actor);
+	if(actor == nullptr)
+		return [] () { return SentinelTask; };
 
-	return RearangeTableCards();
-}
-
-TaskID CombatView::UpdatePlayerHealth(int targetHP, int targetMaxHP)
-{
-	auto oldHealth = m_playerHealthbar->GetHealth();
-
-	float startHP    = oldHealth.first;
-	float startMaxHP = oldHealth.second;
-
-	auto task = m_taskManager.RegisterTask(
-		[=, this] (TaskID ID, double progress, double deltaTime) mutable -> TaskResult
-		{
-			progress *= 0.5;
-
-			float curve = easeInOutCirc(std::min(progress, 1.0));
-
-			float currentHealth    = glm::mix(startHP ,   static_cast<float>(targetHP)   , curve);
-			float currentMaxHealth = glm::mix(startMaxHP, static_cast<float>(targetMaxHP), curve);
-
-			m_playerHealthbar->SetHealth(currentHealth, static_cast<float>(targetMaxHP));
-
-			if (progress >= 1.0)
-				return TaskResult::Return;
-
-			return TaskResult::Yield;
-		}
-	);
-
-	m_taskManager.StartTask(task);
-	return task;
-}
-
-TaskID CombatView::UpdateEnemyHealth(int targetHP, int targetMaxHP)
-{
-	auto oldHealth = m_enemyHealthbar->GetHealth();
-
-	float startHP    = oldHealth.first;
-	float startMaxHP = oldHealth.second;
-
-	auto task = m_taskManager.RegisterTask(
-		[=, this] (TaskID ID, double progress, double deltaTime) mutable -> TaskResult
-		{
-			progress *= 0.5;
-
-			float curve = easeInOutCirc(std::min(progress, 1.0));
-
-			float currentHealth    = glm::mix(startHP ,   static_cast<float>(targetHP)   , curve);
-			float currentMaxHealth = glm::mix(startMaxHP, static_cast<float>(targetMaxHP), curve);
-
-			m_enemyHealthbar->SetHealth(currentHealth, static_cast<float>(targetMaxHP));
-
-			if (progress >= 1.0)
-				return TaskResult::Return;
-
-			return TaskResult::Yield;
-		}
-	);
-
-	m_taskManager.StartTask(task);
-	return task;
-}
-
-TaskID CombatView::DisplayTurnNumber(int turnCount)
-{
-	m_turnDisplay->SetText("{C:WHITE, S:BOLD}Beginning Turn " + std::to_string(turnCount), 44);
-
-	float x = (m_context->GetViewport().width - m_turnDisplay->GetWidth()) / 2.0f;
-	float y = (m_context->GetViewport().height - m_turnDisplay->GetHeight()) / 2.0f;
-
-	glm::vec3 startingPosition {x, 2000.0f, 3.01f};
-	glm::vec3 intermediatePosition {x, y, 3.01f};
-	glm::vec3 targetPosition {x, -2000.0f, 3.01f};
-
-	m_turnDisplay->SetPosition(startingPosition);
-
-	auto taskID = m_taskManager.RegisterTask([=, this](TaskID task, double progress, double deltaTime) -> TaskResult
+	return [this, actor]()
 	{
-		progress *= 0.25;
-
-		if (progress < 0.45)
-		{
-			m_turnDisplay->IsVisible(true);
-			float localProgress = static_cast<float>(progress / 0.45);
-			float curve = easeInOutCirc(localProgress);
-
-			glm::vec3 currentPosition =
-				glm::mix(startingPosition, intermediatePosition, curve);
-
-			m_turnDisplay->SetPosition(currentPosition);
-		}
-		else if (progress < 0.55)
-		{
-			m_turnDisplay->SetPosition(intermediatePosition);
-		}
-		else if (progress < 1.0)
-		{
-			float localProgress =
-				static_cast<float>((progress - 0.55) / (1.0 - 0.55));
-
-			float curve = easeInOutCirc(localProgress);
-
-			glm::vec3 currentPosition =
-				glm::mix(intermediatePosition, targetPosition, curve);
-
-			m_turnDisplay->SetPosition(currentPosition);
-		}
-		else
-		{
-			m_turnDisplay->IsVisible(false);
-			m_turnDisplay->SetPosition(targetPosition);
-			return TaskResult::Return;
-		}
-
-		return TaskResult::Yield;
-	});
-
-	m_taskManager.StartTask(taskID, 1.03f);
-
-	return taskID;
+		m_hand.RemoveCard(actor);
+		m_table.AddCard(actor);
+	
+		return RearangeTableCards();
+	};
 }
 
-TaskID CombatView::EnableUserInput()
+std::function<TaskID()> CombatView::UpdatePlayerHealth(int targetHP, int targetMaxHP)
 {
-	m_canInput = true;
-
-	return SentinelTask;
+	return [this, targetHP, targetMaxHP]()
+	{			
+		auto oldHealth = m_playerHealthbar->GetHealth();
+		
+		float startHP    = oldHealth.first;
+		float startMaxHP = oldHealth.second;
+		
+		auto task = m_taskManager.RegisterTask(
+			[=, this] (TaskID ID, double progress, double deltaTime) mutable -> TaskResult
+			{
+				progress *= 0.5;
+				
+				float curve = easeInOutCirc(std::min(progress, 1.0));
+				
+				float currentHealth    = glm::mix(startHP ,   static_cast<float>(targetHP)   , curve);
+				float currentMaxHealth = glm::mix(startMaxHP, static_cast<float>(targetMaxHP), curve);
+				
+				m_playerHealthbar->SetHealth(currentHealth, static_cast<float>(targetMaxHP));
+				
+				if (progress >= 1.0)
+				return TaskResult::Return;
+				
+				return TaskResult::Yield;
+			}
+		);
+		
+		m_taskManager.StartTask(task);
+		return task;
+	};
 }
 
-TaskID CombatView::DisableUserInput()
+std::function<TaskID()> CombatView::UpdateEnemyHealth(int targetHP, int targetMaxHP)
 {
-	m_canInput = false;
+	return [this, targetHP, targetMaxHP]()
+	{			
+		auto oldHealth = m_enemyHealthbar->GetHealth();
+		
+		float startHP    = oldHealth.first;
+		float startMaxHP = oldHealth.second;
+		
+		auto task = m_taskManager.RegisterTask(
+			[=, this] (TaskID ID, double progress, double deltaTime) mutable -> TaskResult
+			{
+				progress *= 0.5;
+				
+				float curve = easeInOutCirc(std::min(progress, 1.0));
+				
+				float currentHealth    = glm::mix(startHP ,   static_cast<float>(targetHP)   , curve);
+				float currentMaxHealth = glm::mix(startMaxHP, static_cast<float>(targetMaxHP), curve);
+				
+				m_enemyHealthbar->SetHealth(currentHealth, static_cast<float>(targetMaxHP));
+				
+				if (progress >= 1.0)
+				return TaskResult::Return;
+				
+				return TaskResult::Yield;
+			}
+		);
+		
+		m_taskManager.StartTask(task);
+		return task;
+	};
+}
 
-	return SentinelTask;
+std::function<TaskID()> CombatView::DisplayTurnNumber(int turnCount)
+{
+	return [this, turnCount]()
+	{
+		m_turnDisplay->SetText("{C:WHITE, S:BOLD}Beginning Turn " + std::to_string(turnCount), 44);
+
+		float x = (m_context->GetViewport().width - m_turnDisplay->GetWidth()) / 2.0f;
+		float y = (m_context->GetViewport().height - m_turnDisplay->GetHeight()) / 2.0f;
+
+		glm::vec3 startingPosition {x, 2000.0f, 3.01f};
+		glm::vec3 intermediatePosition {x, y, 3.01f};
+		glm::vec3 targetPosition {x, -2000.0f, 3.01f};
+
+		m_turnDisplay->SetPosition(startingPosition);
+
+		auto taskID = m_taskManager.RegisterTask([=, this](TaskID task, double progress, double deltaTime) -> TaskResult
+		{
+			progress *= 0.25;
+
+			if (progress < 0.45)
+			{
+				m_turnDisplay->IsVisible(true);
+				float localProgress = static_cast<float>(progress / 0.45);
+				float curve = easeInOutCirc(localProgress);
+
+				glm::vec3 currentPosition =
+					glm::mix(startingPosition, intermediatePosition, curve);
+
+				m_turnDisplay->SetPosition(currentPosition);
+			}
+			else if (progress < 0.55)
+			{
+				m_turnDisplay->SetPosition(intermediatePosition);
+			}
+			else if (progress < 1.0)
+			{
+				float localProgress =
+					static_cast<float>((progress - 0.55) / (1.0 - 0.55));
+
+				float curve = easeInOutCirc(localProgress);
+
+				glm::vec3 currentPosition =
+					glm::mix(intermediatePosition, targetPosition, curve);
+
+				m_turnDisplay->SetPosition(currentPosition);
+			}
+			else
+			{
+				m_turnDisplay->IsVisible(false);
+				m_turnDisplay->SetPosition(targetPosition);
+				return TaskResult::Return;
+			}
+
+			return TaskResult::Yield;
+		});
+
+		m_taskManager.StartTask(taskID, 0.2f);
+
+		return taskID;
+	};
+}
+
+std::function<TaskID()> CombatView::DisplayEnemyTurn()
+{
+	return [this]()
+	{
+		m_turnDisplay->SetText("{C:WHITE, S:BOLD}Enemy Turn ", 44);
+
+		float x = (m_context->GetViewport().width - m_turnDisplay->GetWidth()) / 2.0f;
+		float y = (m_context->GetViewport().height - m_turnDisplay->GetHeight()) / 2.0f;
+
+		glm::vec3 startingPosition {x, 2000.0f, 3.01f};
+		glm::vec3 intermediatePosition {x, y, 3.01f};
+		glm::vec3 targetPosition {x, -2000.0f, 3.01f};
+
+		m_turnDisplay->SetPosition(startingPosition);
+
+		auto taskID = m_taskManager.RegisterTask([=, this](TaskID task, double progress, double deltaTime) -> TaskResult
+		{
+			progress *= 0.25;
+
+			if (progress < 0.45)
+			{
+				m_turnDisplay->IsVisible(true);
+				float localProgress = static_cast<float>(progress / 0.45);
+				float curve = easeInOutCirc(localProgress);
+
+				glm::vec3 currentPosition =
+					glm::mix(startingPosition, intermediatePosition, curve);
+
+				m_turnDisplay->SetPosition(currentPosition);
+			}
+			else if (progress < 0.55)
+			{
+				m_turnDisplay->SetPosition(intermediatePosition);
+			}
+			else if (progress < 1.0)
+			{
+				float localProgress =
+					static_cast<float>((progress - 0.55) / (1.0 - 0.55));
+
+				float curve = easeInOutCirc(localProgress);
+
+				glm::vec3 currentPosition =
+					glm::mix(intermediatePosition, targetPosition, curve);
+
+				m_turnDisplay->SetPosition(currentPosition);
+			}
+			else
+			{
+				m_turnDisplay->IsVisible(false);
+				m_turnDisplay->SetPosition(targetPosition);
+				return TaskResult::Return;
+			}
+
+			return TaskResult::Yield;
+		});
+
+		m_taskManager.StartTask(taskID, 0.2f);
+
+		return taskID;
+	};
+}
+
+std::function<TaskID()> CombatView::EnableUserInput()
+{
+	return [this]()
+	{
+		m_canInput = true;
+		return SentinelTask;
+	};
+}
+
+std::function<TaskID()> CombatView::DisableUserInput()
+{
+	return [this]()
+	{
+		m_canInput = false;
+		return SentinelTask;
+	};
 }
 
 // Private =>
@@ -707,7 +798,23 @@ void CombatView::DropCard(CardModel * actor, bool inPlayArea)
 		}
 	}
 	else
+	{
+		m_hand.SetResolve(actor);
+
+		auto vp = m_context->GetViewport();
+		m_taskQueue.PushCancel(
+			reinterpret_cast<uint64_t>(actor),
+			GenerateMoveCardTask(
+				actor, 
+				glm::vec3 {(vp.width - m_cardSize) / 2.0, (vp.height - m_cardSize) / 2.0f, 1.0f},
+				glm::vec3 {m_cardSize * 1.5f, m_cardSize * 1.5f, 1.0},
+				1.0f,
+				easeInOutCirc
+			)
+		);
+
 		m_subscriber->OnCardDropInPlayArea(actor);
+	}
 }
 
 TaskID CombatView::RearangeTableCards()
@@ -730,6 +837,6 @@ TaskID CombatView::RearangeHandCards()
 		task = GenerateMoveCardTask(actor, m_hand.GetCardPos(actor), m_hand.GetCardSize(actor), 5.0, easeInOutCirc);
 		m_taskQueue.PushCancel(reinterpret_cast<uint64_t>(actor), task);
 	}
-	
+
 	return task;
 }

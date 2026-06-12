@@ -40,7 +40,7 @@ void CombatModel::Init()
 	m_playerPiles.shuffle();
 	m_enemyPiles.shuffle();
 
-	DrawToTable(3);
+	DrawToTable(4);
 	BeginPlayerTurn();
 }
 

@@ -142,7 +142,7 @@ void Game::SetupTextures()
 	LoadTexture ("texture_table", "data/assets/textures/table.png");
 
 	// enemies
-	LoadTexture ("texture_enemy_badalisc_idle_0", "data/assets/textures/badalisc_placeholder.png");
+	LoadTexture ("texture_enemy_badalisc", "data/assets/textures/badalisc_placeholder.png");
 
 	// cards
 	LoadTexture ("texture_card_back", "data/assets/textures/card_back_normal.png");
@@ -220,6 +220,12 @@ void Game::SetupMaterials()
 			{"color", Vec3}
 		})
 	);
+
+	AssetManager::Cache("material_enemy",
+		AssetManager::CreateMaterialTemplate({
+			{"texture", TexQ},
+		})
+	);
 }
 
 void Game::SetupTechniques()
@@ -245,30 +251,41 @@ void Game::SetupTechniques()
 		AssetManager::Cache("shader_source_fragment_box9patch")
 	);
 
+	ID64_t enemyProgram = m_renderer->CreateProgram(
+		AssetManager::Cache("shader_source_vertex_common"),
+		AssetManager::Cache("shader_source_fragment_enemy")
+	);
+
 	Technique cardTechnique;
 	cardTechnique.mode     = ProjectionMode::Orthographic;
 	cardTechnique.program  = cardProgram;
 	cardTechnique.material = AssetManager::Cache("material_card");
-	m_renderer->RegisterTechnique(cardTechnique, 50.0);
+	m_renderer->RegisterTechnique(cardTechnique, 50.0f);
 
 	Technique healthBarTechnique;
 	healthBarTechnique.mode     = ProjectionMode::Orthographic;
 	healthBarTechnique.program  = healthbarProgram;
 	healthBarTechnique.material = AssetManager::Cache("material_healthbar");
-	m_renderer->RegisterTechnique(healthBarTechnique, 99.0);
+	m_renderer->RegisterTechnique(healthBarTechnique, 99.0f);
 
 	Technique glyphTechnique;
 	glyphTechnique.mode     = ProjectionMode::Orthographic;
 	glyphTechnique.program  = glyphProgram;
 	glyphTechnique.material = AssetManager::Cache("material_glyph");
 	glyphTechnique.useFontAtlas = true;
-	m_renderer->RegisterTechnique(glyphTechnique, 100.0);
+	m_renderer->RegisterTechnique(glyphTechnique, 100.0f);
 
 	Technique tooltipTechnique;
 	tooltipTechnique.mode     = ProjectionMode::Orthographic;
 	tooltipTechnique.program  = box9patchProgram;
 	tooltipTechnique.material = AssetManager::Cache("material_box9patch");
-	m_renderer->RegisterTechnique(tooltipTechnique, 98.0);
+	m_renderer->RegisterTechnique(tooltipTechnique, 98.0f);
+
+	Technique enemyTechnique;
+	enemyTechnique.mode     = ProjectionMode::Orthographic;
+	enemyTechnique.program  = enemyProgram;
+	enemyTechnique.material = AssetManager::Cache("material_enemy");
+	m_renderer->RegisterTechnique(enemyTechnique, 25.0f);
 }
 
 void Game::SetupFonts()
