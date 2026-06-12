@@ -109,7 +109,9 @@ public:
 		}
 
 		offsetY += 15;
-		m_name->SetPosition(transform.position + glm::vec3 {(m_totalWidth - m_name->GetWidth()) / 2, offsetY, 0.1f});
+		
+		if (m_name)
+			m_name->SetPosition(transform.position + glm::vec3 {(m_totalWidth - m_name->GetWidth()) / 2, offsetY, 0.1f});
 
 		UpdateTransform();
 	}

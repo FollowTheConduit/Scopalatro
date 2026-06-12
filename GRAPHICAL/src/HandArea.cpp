@@ -7,7 +7,7 @@
 
 using namespace TLOT;
 
-void HandArea::AddCard (ObjectID card)
+void HandArea::AddCard (CardModel * card)
 {
 	if (m_hand.find (card) == m_hand.end ())
 	{
@@ -15,7 +15,7 @@ void HandArea::AddCard (ObjectID card)
 	}
 }
 
-void HandArea::RemoveCard (ObjectID card)
+void HandArea::RemoveCard (CardModel * card)
 {
 	if (m_hand.find (card) == m_hand.end ())
 	{
@@ -33,7 +33,7 @@ size_t HandArea::GetHandSize ()
 	return m_hand.size ();
 }
 
-glm::vec3 HandArea::GetCardPos (ObjectID card)
+glm::vec3 HandArea::GetCardPos (CardModel * card)
 {
 	if (m_hand.find (card) == m_hand.end ()) return glm::vec3 {-1000.0f};
 
@@ -41,7 +41,7 @@ glm::vec3 HandArea::GetCardPos (ObjectID card)
 
 	float handSize = (float)GetHandSize ();
 
-	if (m_draggedCard != InvalidObject)
+	if (m_draggedCard)
 	{
 		auto draggedCardIndex = m_hand.at (m_draggedCard);
 		handSize -= 1.0f;
@@ -68,7 +68,7 @@ glm::vec3 HandArea::GetCardPos (ObjectID card)
 	float y = cardSize / 3;
 	float z = index * 0.1f;
 
-	if (m_hoveredCard != InvalidObject && m_draggedCard == InvalidObject)
+	if (m_hoveredCard && !m_draggedCard)
 	{
 		auto hoveredCardIndex = m_hand.at (m_hoveredCard);
 	
@@ -93,7 +93,7 @@ glm::vec3 HandArea::GetCardPos (ObjectID card)
 	return glm::vec3 {x, y, z};
 }
 
-glm::vec3 HandArea::GetCardSize (ObjectID card)
+glm::vec3 HandArea::GetCardSize (CardModel * card)
 {
 	if (m_hand.find (card) == m_hand.end ()) return glm::vec3 {-1000.0f};
 
@@ -105,26 +105,27 @@ glm::vec3 HandArea::GetCardSize (ObjectID card)
 	return glm::vec3 {cardSize};
 }
 
-size_t HandArea::GetIndex (ObjectID card)
+size_t HandArea::GetIndex (CardModel * card)
 {
 	if (m_hand.find (card) == m_hand.end ()) return -1;
 
 	return m_hand[card];
 }
 
-void HandArea::SetHover (ObjectID card)
+void HandArea::SetHover (CardModel * card)
 {
 	m_hoveredCard = card;
 }
 
-void HandArea::SetDrag (ObjectID card)
+void HandArea::SetDrag (CardModel * card)
 {
 	m_draggedCard = card;
+	m_hoveredCard = nullptr;
 }
 
 void HandArea::RecalculateIndices ()
 {
-	std::vector<std::pair<ObjectID, size_t>> sortedHand;
+	std::vector<std::pair<CardModel *, size_t>> sortedHand;
 	sortedHand.reserve (m_hand.size ());
 
 	for (auto & p : m_hand)
@@ -132,7 +133,7 @@ void HandArea::RecalculateIndices ()
 		sortedHand.push_back (p);
 	}
 
-	std::sort (sortedHand.begin (), sortedHand.end (), [] (std::pair<ObjectID, size_t> & a, std::pair<ObjectID, size_t> & b) {
+	std::sort (sortedHand.begin (), sortedHand.end (), [] (std::pair<CardModel *, size_t> & a, std::pair<CardModel *, size_t> & b) {
 		return a.second < b.second;
 	});
 

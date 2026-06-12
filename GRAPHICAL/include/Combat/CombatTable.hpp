@@ -9,6 +9,7 @@
 #include <vector>
 
 #include <Combat/CombatHelper.hpp>
+#include <RenderableObjects/CardModel.hpp>
 
 #include <glm/glm.hpp>
 
@@ -21,17 +22,25 @@ public:
 	float beginX = 0;
 	float beginY = 0;
 
-	void AddCard(ObjectID card);
-	void RemoveCard(ObjectID card);
+	void AddCard(CardModel * card);
+	void RemoveCard(CardModel * card);
 
-	glm::vec3 GetPos(ObjectID card);
-	glm::vec3 GetScale(ObjectID card);
+	glm::vec3 GetPos(CardModel * card);
+	glm::vec3 GetScale();
 
 	auto begin() { return m_table.begin(); }
 	auto end() { return m_table.end(); }
 
+	size_t GetIndex(CardModel * card)
+	{
+		if (m_table.find(card) == m_table.end())
+			return -1;
+
+		return m_table.at(card);
+	}
+
 private:
-	std::map<ObjectID, size_t> m_table;
+	std::map<CardModel *, size_t> m_table;
 
 	size_t m_nextIndex = 0;
 };

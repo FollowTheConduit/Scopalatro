@@ -40,5 +40,7 @@ void TaskQueue::Cancel (uint64_t ID)
 	if (m_tasks.count (ID) > 0)
 	{
 		m_taskManager.StopTask (m_tasks[ID]);
+		m_tasks.erase(ID);
 	}
+
 }

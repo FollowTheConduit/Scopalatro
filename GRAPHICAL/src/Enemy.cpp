@@ -40,14 +40,12 @@ EnemyAction Enemy::rollAction() const {
 	return m_actionWeights.back();
 }
 
-void Enemy::buildDeck() {
-	m_deck.BuildScopaDeck(false);
-	
+void Enemy::buildDeck(std::vector<Card *> & cards)
+{
 	std::random_device rd;
 	std::mt19937 rng(rd());
 	std::uniform_real_distribution<float> probDist(0.0f, 1.0f);
 
-	auto& cards = m_deck.GetCards();
 	for (auto& c : cards) {
 		if (probDist(rng) <= m_attackDensity) {
 			EnemyAction action = rollAction();
@@ -59,67 +57,87 @@ void Enemy::buildDeck() {
 				c->AddEffect(std::make_unique<ApplyStatusEffect>
 					(action.status, action.statusDuration, action.statusMagnitude, TargetType::Enemy));
 			}
-			c->SetName (c->GetName() + " [" + action.name + "]");
 		}
 	}
+}
+
+static std::vector<int> findCaptureIndices(const Card * playedCard, const std::vector<Card *>& table, int customTargetVal) {
 	
-	//m_deck.shuffle();
+	int targetVal = customTargetVal > 0 ? customTargetVal : playedCard->GetNumericValue();
+
+    for (size_t i = 0; i < table.size(); ++i) {
+        if (table[i]->GetNumericValue() == targetVal) {
+            return { static_cast<int>(i) };
+        }
+    }
+
+    int n = table.size();
+    for (int i = 1; i < (1 << n); ++i) {
+        int currentSum = 0;
+        std::vector<int> indices;
+        for (int j = 0; j < n; ++j) {
+            if ((i >> j) & 1) {
+                currentSum += table[j]->GetNumericValue();
+                indices.push_back(j);
+            }
+        }
+        if (currentSum == targetVal) {
+            return indices;
+        }
+    }        
+
+    return {};
 }
 
-void Enemy::drawCards() {
-	//while (m_hand.size() < 3 && !m_deck.isEmpty()) {
-	//	m_hand.push_back(m_deck.draw());
-	//}
+void Enemy::planTurn(std::vector<Card *> & hand, std::vector<Card *> & table) {
+	if (hand.empty()) {
+		m_plannedCardIdx = -1;
+		return;
+	}
+
+	m_plannedCardIdx = 0;
+	int bestCaptureValue = -1;
+
+		for (size_t i = 0; i < hand.size(); ++i) {
+			auto captureIndices = findCaptureIndices(hand[i], table, -1);
+
+			if (!captureIndices.empty()) {
+				int captureValue = 0;
+				for (int idx : captureIndices) {
+					captureValue += table[idx]->GetNumericValue();
+				}
+				if (captureValue > bestCaptureValue) {
+					bestCaptureValue = captureValue;
+					m_plannedCardIdx = static_cast<int>(i);
+				}
+			}
+		}
+
+	if (bestCaptureValue == -1) {
+		std::random_device rd;
+		std::mt19937 rng(rd());
+		std::uniform_int_distribution<int> dist(0, hand.size() - 1);
+		m_plannedCardIdx = dist(rng);
+	}
 }
 
-void Enemy::planTurn(const std::vector<std::unique_ptr<Card>>& table) {
-	//if (m_hand.empty()) {
-	//	m_plannedCardIdx = -1;
-	//	return;
-	//}
-//
-	//m_plannedCardIdx = 0;
-	//int bestCaptureValue = -1;
-//
-	//	for (size_t i = 0; i < m_hand.size(); ++i) {
-	//		auto captureIndices =
-	//			DeckBuilder::findCaptureIndices(m_hand[i].get(), table);
-//
-	//		if (!captureIndices.empty()) {
-	//			int captureValue = 0;
-	//			for (int idx : captureIndices) {
-	//				captureValue += table[idx]->getNumericValue();
-	//			}
-	//			if (captureValue > bestCaptureValue) {
-	//				bestCaptureValue = captureValue;
-	//				m_plannedCardIdx = static_cast<int>(i);
-	//			}
-	//		}
-	//	}
-//
-	//if (bestCaptureValue == -1) {
-	//	std::random_device rd;
-	//	std::mt19937 rng(rd());
-	//	std::uniform_int_distribution<int> dist(0, m_hand.size() - 1);
-	//	m_plannedCardIdx = dist(rng);
-	//}
-}
-
-const Card* Enemy::getPlannedCard() const {
-	if (m_plannedCardIdx >= 0 && m_plannedCardIdx < static_cast<int>
-		(m_hand.size())) {
-		return m_hand[m_plannedCardIdx].get();
+const Card* Enemy::getPlannedCard(std::vector<Card *> & hand) const {
+	if (m_plannedCardIdx >= 0 && m_plannedCardIdx < static_cast<int>(hand.size()))
+	{
+		return hand.at(m_plannedCardIdx);
 	}
 	return nullptr;
 }
 
-std::unique_ptr<Card> Enemy::executeTurn() {
-	if (m_plannedCardIdx >= 0 && m_plannedCardIdx < static_cast<int>
-		(m_hand.size())) {
-		auto card = std::move(m_hand[m_plannedCardIdx]);
-		m_hand.erase(m_hand.begin() + m_plannedCardIdx);
+Card * Enemy::executeTurn(std::vector<Card *> & hand) {
+	if (m_plannedCardIdx >= 0 && m_plannedCardIdx < static_cast<int>(hand.size()))
+	{
+		auto card = std::move(hand[m_plannedCardIdx]);
+		hand.erase(hand.begin() + m_plannedCardIdx);
 		m_plannedCardIdx = -1;
+
 		return card;
 	}
+
 	return nullptr;
 }

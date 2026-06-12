@@ -2,7 +2,7 @@
 
 #include <algorithm>
 
-void TableArea::AddCard(ObjectID card)
+void TableArea::AddCard(CardModel * card)
 {
 	if (m_table.contains(card))
 		return;
@@ -10,7 +10,7 @@ void TableArea::AddCard(ObjectID card)
 	m_table[card] = m_nextIndex++;
 }
 
-void TableArea::RemoveCard(ObjectID card)
+void TableArea::RemoveCard(CardModel * card)
 {
 	auto it = m_table.find(card);
 
@@ -31,7 +31,7 @@ void TableArea::RemoveCard(ObjectID card)
 	--m_nextIndex;
 }
 
-glm::vec3 TableArea::GetPos(ObjectID card)
+glm::vec3 TableArea::GetPos(CardModel * card)
 {
 	auto it = m_table.find(card);
 
@@ -48,10 +48,10 @@ glm::vec3 TableArea::GetPos(ObjectID card)
 
 	float x = startX + static_cast<float>(it->second) * cardAdvance;
 
-	return glm::vec3(beginX + x, beginY, 0.1f * it->second - 1.0);
+	return glm::vec3(beginX + x, beginY, 0.1f * it->second - 1.0f);
 }
 
-glm::vec3 TableArea::GetScale(ObjectID)
+glm::vec3 TableArea::GetScale()
 {
 	return glm::vec3(cardSize);
 }

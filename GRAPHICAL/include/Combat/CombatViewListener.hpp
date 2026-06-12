@@ -2,13 +2,12 @@
 
 #include <Combat/CombatHelper.hpp>
 #include <RenderableObject.hpp>
+#include <RenderableObjects/CardModel.hpp>
 
 
 struct CombatViewListener
 {
-	virtual void OnCardDropInPlayArea (ObjectID card) = 0;
+	virtual void OnCardDropInPlayArea (CardModel * actor) = 0;
 
 	virtual void DebugDrawCard () = 0;
-
-	virtual ObjectID GenerateObject () = 0;
 };

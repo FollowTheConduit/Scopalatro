@@ -25,27 +25,19 @@ public:
 	void setActionWeights(std::vector<EnemyAction> weights);
 	void setAttackDensity(float density) { m_attackDensity = density; }
 
-	void buildDeck();
-	void drawCards();
-	void planTurn(const std::vector<std::unique_ptr<Card>>& table);
-	const Card* getPlannedCard() const;
-	std::unique_ptr<Card> executeTurn();
+	void buildDeck(std::vector<Card *> & cards);
+	void planTurn(std::vector<Card *> & hand, std::vector<Card *> & table);
+	const Card* getPlannedCard(std::vector<Card *> & hand) const;
+	Card * executeTurn(std::vector<Card *> & hand);
 
-	int getHandSize() const { return m_hand.size(); }
-	void addScoreCards(std::vector<std::unique_ptr<Card>> captured) {
-		for (auto& c : captured) m_scorePile.push_back(std::move(c));
-	}
-	const std::vector<std::unique_ptr<Card>>& getScorePile() const {
-		return m_scorePile;
+	void addScoreCards(std::vector<Card *> & capturePile, std::vector<Card *> captured)
+	{
+		for (auto& c : captured) capturePile.push_back(std::move(c));
 	}
 
 private:
 	float m_attackDensity;
 	std::vector<EnemyAction> m_actionWeights;
-
-	Deck m_deck;
-	std::vector<std::unique_ptr<Card>> m_hand;
-	std::vector<std::unique_ptr<Card>> m_scorePile;
 	int m_plannedCardIdx = -1;
 
     int rollDamage(int min, int max) const;

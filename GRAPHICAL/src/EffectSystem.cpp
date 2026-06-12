@@ -5,18 +5,18 @@
 
 void DamageEffect::apply(EffectContext& ctx) {
 	int finalAmount = amount;
-	if(ctx.source) {
-		finalAmount = ctx.source->calculateDamage(amount);
+	if(ctx.entitySource) {
+		finalAmount = ctx.entitySource->calculateDamage(amount);
 	}
     auto targets = ctx.getTargets(targetType);
     for(auto* target : targets) {
 		if(target) {
-			ctx.observer->Damage(target, finalAmount, ctx.source, false);
+			ctx.observer->Damage(target, finalAmount, ctx.entitySource, false);
 			//target->takeDamage(finalAmount, ctx.source);
 
-			if(ctx.source) {
-				for(auto& r : ctx.source->getRelics()) {
-					r->onDamageDealt(*ctx.source, *target, finalAmount);
+			if(ctx.entitySource) {
+				for(auto& r : ctx.entitySource->getRelics()) {
+					r->onDamageDealt(*ctx.entitySource, *target, finalAmount);
 				}
 			}
 		}
@@ -47,7 +47,7 @@ void BlockEffect::apply(EffectContext& ctx) {
 void DrawCardEffect::apply(EffectContext& ctx) {
 	if(ctx.observer )
 	{
-		ctx.observer->Draw(amount);
+		ctx.observer->DrawToHand(amount);
 	}
 	else
 	{
@@ -62,14 +62,14 @@ void HarvestEffect::apply(EffectContext& ctx) {
 		return;
 	}
 
-	if(!ctx.scorePile) {
+	if(!ctx.observer->GetPlayerCapturePile()) {
 		std::cout << "No score pile available to Harvest!" << std::endl;
 		return;
 	}
 
 	int totalValue = 0;
 
-	for(const auto& card : *ctx.scorePile)
+	for(const auto& card : *ctx.observer->GetPlayerCapturePile())
 	{
 		if(card) totalValue += card->GetNumericValue();
 	}
@@ -79,17 +79,17 @@ void HarvestEffect::apply(EffectContext& ctx) {
 	for(auto* target : targets)
 	{
 		if(target)
-			ctx.observer->Damage(target, totalValue, ctx.source, false);
+			ctx.observer->Damage(target, totalValue, ctx.entitySource, false);
 	}
 }
 
 void BoostTableEffect::apply(EffectContext& ctx) {
-	if(!ctx.table) {
+	if(!ctx.observer->GetTable()) {
 		std::cout << "No table available!" << std::endl;
 		return;
 	}
 	std::cout << "Show of Strength! All table cards boosted by +" << boostAmount << "!" << std::endl;
-	for(auto& card : *ctx.table) {
+	for(auto& card : *ctx.observer->GetTable()) {
 		if(card) {
 			card->BoostValue(boostAmount);
 			std::cout << "	" << card->GetName() << " -> value " << card->GetNumericValue() << std::endl;
@@ -102,16 +102,15 @@ std::string ChangeTableSuitEffect::getDescription() const {
 }
 
 void ChangeTableSuitEffect::apply(EffectContext& ctx) {
-	if(!ctx.table) {
+	if(!ctx.observer->GetTable()) {
 		std::cout << "No table available." << std::endl;
 		return;
 	}
 	std::cout << "Demonstration of Intelligence! All table cards become " << suitToString(newSuit) << "!" << std::endl;
-	for(auto& card : *ctx.table) {
+	for(auto& card : *ctx.observer->GetTable()) {
 		if(card)
 		{
-			auto cardID = ctx.observer->GetObjectID(card);
-			ctx.observer->ChangeCardSuit(cardID, newSuit);
+			ctx.observer->ChangeCardSuit(card, newSuit);
 		}
 	}
 }

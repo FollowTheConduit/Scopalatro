@@ -45,9 +45,10 @@ public:
 		name = valueToString(value) + " of " + suitToString(suit);
 	}
 
-	void SetName(std::string name)
+	void SetValue(CardValue v)
 	{
-		this->name = name;
+		value = v;
+		name = valueToString(value) + " of " + suitToString(suit);
 	}
 	
 private:

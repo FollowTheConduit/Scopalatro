@@ -10,11 +10,10 @@ class Card;
 enum class RelicTier { Common, Uncommon, Rare };
 
 struct CaptureEvent {
-	Card* playedCard;
-	std::vector<Card*> captured;
-	Entity* player;
-	Entity* enemy;
-	std::vector<Card *> * scorePile;
+	Entity * player;
+	Entity * enemy;
+	Card   * playedCard;
+	std::vector<Card *> captured;
 };
 
 class Relic {

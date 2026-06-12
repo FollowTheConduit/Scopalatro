@@ -28,56 +28,42 @@ public:
 private:
 	// View events
 
-	void OnCardDropInPlayArea(ObjectID card) override;
-
+	void OnCardDropInPlayArea(CardModel * actor) override;
 	void DebugDrawCard() override;
-
-	ObjectID GenerateObject() override;
 
 	// Model events
 	
 	void OnMessage(std::string const message) override;
-
-	void OnDiscardToDrawPile(std::vector<ObjectID> cards) override;
-
-	void OnCardsDrawn(std::vector<ObjectID> cards) override;
-	void OnCardsDiscarded(std::vector<ObjectID> cards) override;
-	void OnCardsCaptured(std::vector<ObjectID> cards) override;
-
-	void OnPlayerHealthChange(int newHP, int newMaxHP) override;
-	void OnEnemyHealthChange(int newHP, int newMaxHP) override;
-
-	void OnPlayerDeath () override;
-	void OnEnemyDeath () override;
-
-	void OnCardUpdate(ObjectID cardId, CardValue value, Suit suit, std::string name, std::string description) override;
-
-	void OnCardPlacedOnTable(ObjectID cardID) override;
-	void OnCardDrawToTable(std::vector<ObjectID> cards) override;
-
+	void OnCardsDrawnToHand(std::vector<Card *> cards) override;
+	void OnCardsDrawnToTable(std::vector<Card *> cards) override;
+	void OnCardsDiscarded(std::vector<Card *> cards) override;
+	void OnCardsCaptured(std::vector<Card *> cards) override;
+	void OnCardUpdate(Card * cards) override;
+	void OnCardPlacedOnTable(Card * card) override;
 	void OnPlayerBeginTurn(int turnCount) override;
+	void OnPlayerHealthChange(int newHP, int newMaxHP) override;
+	void OnPlayerDeath() override;
 	void OnPlayerEndTurn() override;
-
 	void OnEnemyBeginTurn() override;
+	void OnEnemyHealthChange(int newHP, int newMaxHP) override;
+	void OnEnemyDeath() override;
 	void OnEnemyEndTurn() override;
 
 	// Members
-
-	void PreparePlayerTurn();
-
-
 	TLOT::RenderContext * m_context;
 	TLOT::Renderer * m_renderer;
 
 	std::unique_ptr<CombatView>  m_view;
 	std::unique_ptr<CombatModel> m_model;
 
-	ObjectID m_nextID = 0;
+	std::map<Card *, CardModel *> m_cardToActor;
+	std::map<CardModel *, Card *> m_actorToCard;
 
-	enum GameState
-	{
-		None, TitleScreen, Combat, Shop
-	};
+	Card      * Convert(CardModel * actor);
+	CardModel * Convert(Card * card);
+	std::vector<Card *>      Convert(std::vector<CardModel *> actors);
+	std::vector<CardModel *> Convert(std::vector<Card *> cards);
 
-	GameState m_state;
+	TaskManager m_taskManager;
+	std::vector<std::function<TaskID()>> m_blockingAnimationStack;
 };

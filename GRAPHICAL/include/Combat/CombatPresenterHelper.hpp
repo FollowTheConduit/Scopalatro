@@ -20,7 +20,8 @@ struct CombatParams
 	uint32_t playerMaxHP;
 
 	std::vector<Card *> playerCards;
+	std::vector<Card *> enemyCards;
+
+
 	std::vector<int>    playerItems;
-	
-	std::vector<Enemy *> enemies;
 };

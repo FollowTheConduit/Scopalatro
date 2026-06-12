@@ -9,6 +9,7 @@
 #include <vector>
 
 #include <Combat/CombatHelper.hpp>
+#include <RenderableObjects/CardModel.hpp>
 
 #include <glm/glm.hpp>
 
@@ -21,29 +22,29 @@ public:
 
 	float hoverFactor = 2.0f;
 
-	void AddCard(ObjectID card);
+	void AddCard(CardModel * card);
 
-	void RemoveCard(ObjectID card);
+	void RemoveCard(CardModel * card);
 
 	size_t GetHandSize();
-	glm::vec3 GetCardPos(ObjectID card);
+	glm::vec3 GetCardPos(CardModel * card);
 
-	glm::vec3 GetCardSize(ObjectID card);
+	glm::vec3 GetCardSize(CardModel * card);
 
-	size_t GetIndex(ObjectID card);
+	size_t GetIndex(CardModel * card);
 
-	void SetHover(ObjectID card);
-	void SetDrag(ObjectID card);
+	void SetHover(CardModel * card);
+	void SetDrag(CardModel * card);
 	auto begin() {return m_hand.begin(); }
 	auto end  () {return m_hand.end  (); }
 
 private:
 	void RecalculateIndices();
 
-	std::map<ObjectID, size_t> m_hand;
+	std::map<CardModel *, size_t> m_hand;
 
-	ObjectID m_hoveredCard = InvalidObject;
-	ObjectID m_draggedCard = InvalidObject;
+	CardModel * m_hoveredCard = nullptr;
+	CardModel * m_draggedCard = nullptr;
 
 	size_t m_nextIndex = 0;
 };

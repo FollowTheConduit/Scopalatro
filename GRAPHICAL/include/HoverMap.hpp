@@ -3,6 +3,7 @@
 #include <map>
 
 #include <MVPHelper.hpp>
+#include <RenderableObject.hpp>
 
 enum class HoverType
 {
@@ -16,8 +17,8 @@ enum class HoverType
 class HoverMap
 {
 public:
-	void Hover(ObjectID id, double deltaTime);
-	HoverType GetHover(ObjectID id);
+	void Hover(TLOT::IObject * id, double deltaTime);
+	HoverType GetHover(TLOT::IObject * id);
 
 	void Update();
 
@@ -28,5 +29,5 @@ private:
 		bool hoveredThisFrame = false;
 	};
 
-	std::map<ObjectID, HoverCount> m_hoverCount;
+	std::map<TLOT::IObject *, HoverCount> m_hoverCount;
 };

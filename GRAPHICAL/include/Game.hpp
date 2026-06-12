@@ -31,6 +31,7 @@ public:
 
 private:
 	void InitPlayerDeck();
+	void InitEnemyDeck();
 	CombatParams GenerateCombatParameters();
 
 
@@ -56,6 +57,7 @@ private:
 	float m_playerHP;
 	float m_playerMaxHP;
 	Deck m_playerDeck;
+	Deck m_enemyDeck;
 
 
 

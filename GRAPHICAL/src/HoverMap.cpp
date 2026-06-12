@@ -1,12 +1,14 @@
 #include <HoverMap.hpp>
 
-void HoverMap::Hover(ObjectID id, double dt)
+using namespace TLOT;
+
+void HoverMap::Hover(IObject * id, double dt)
 {
 	m_hoverCount[id].frameCount += dt;
 	m_hoverCount[id].hoveredThisFrame = true;
 }
 
-HoverType HoverMap::GetHover(ObjectID id)
+HoverType HoverMap::GetHover(IObject * id)
 {
 	auto count = m_hoverCount[id].frameCount;
 	

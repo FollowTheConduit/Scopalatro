@@ -9,7 +9,5 @@ public:
 	float height;
 	float beginX;
 	float beginY;
-
-	ObjectID actorID;
 private:
 };

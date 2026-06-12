@@ -8,15 +8,38 @@
 
 using namespace TLOT;
 
+CombatModel::CombatModel(CombatModelListener * listener):
+	m_listener {listener}
+{
+
+}
+
+void CombatModel::RegisterPlayerCard(Card * card)
+{
+	m_registeredCards.emplace(card);
+	m_playerPiles.insert(card, CardPiles::Draw);
+}
+
+void CombatModel::RegisterEnemyCard(Card * card)
+{
+	m_registeredCards.emplace(card);
+	m_enemyPiles.insert(card, CardPiles::Draw);
+}
+
+
 void CombatModel::Init()
 {
 	m_player = std::make_unique<Entity>("player", 50);
-	m_enemy = std::make_unique<Enemy>("Badalisk", 50, 0.5f);
+	m_enemy  = std::make_unique<Enemy>("Badalisk", 30, 0.5f);
 
 	m_listener->OnPlayerHealthChange(m_player->getHp(), m_player->getMaxHp());
 	m_listener->OnEnemyHealthChange(m_enemy->getHp(), m_enemy->getMaxHp());
 
-	ShuffleDeck();
+	m_enemy->buildDeck(m_enemyPiles.drawPile);
+
+	m_playerPiles.shuffle();
+	m_enemyPiles.shuffle();
+
 	DrawToTable(3);
 	BeginPlayerTurn();
 }
@@ -29,238 +52,26 @@ void CombatModel::BeginPlayerTurn()
 	// update statuses
 
 	if (turn == 1)
-		Draw(3);
+		DrawToHand(3);
 
 	else
-		Draw(1);
+		DrawToHand(1);
 }
 
-void CombatModel::BeginEnemyTurn()
+void CombatModel::PlayCard(Card * card)
 {
-	m_listener->OnEnemyBeginTurn();
-
-	// play enemy turn here
-}
-
-
-void CombatModel::PrintPiles()
-{
-	std::string line = "(";
-
-	for(auto & card : m_drawPile)
-	{
-		line += card->GetName() + ", ";
-	}
-	line += ")\n(";
-	for(auto & card : m_hand)
-	{
-		line += card->GetName() + ", ";
-	}
-	line += ")\n(";
-	for(auto & card : m_discardPile)
-	{
-		line += card->GetName() + ", ";
-	}
-	line += ")";
-
-	Logger::log(LogLevel::Info, "[{}]", line);
-}
-
-void CombatModel::ShuffleDeck()
-{
-	std::vector<Card *> cards;
-
-	if(!m_discardPile.empty())
-	{
-		m_listener->OnDiscardToDrawPile(Convert(m_discardPile));
-	}
-	
-	cards.insert(cards.end(), m_drawPile.begin   (), m_drawPile.end   ());
-	cards.insert(cards.end(), m_discardPile.begin(), m_discardPile.end());
-	
-	unsigned int seed = std::chrono::system_clock::now().time_since_epoch().count();
-    std::shuffle(cards.begin(), cards.end(), std::default_random_engine(seed));
-
-	m_drawPile.clear();
-	m_discardPile.clear();
-
-	m_drawPile = cards;
-
-	PrintPiles();
-}
-
-void CombatModel::DrawToTable(size_t count)
-{
-	std::vector<Card *> drawnCards;
-
-	while(drawnCards.size() < std::min(count, m_maxHandSize))
-	{
-		if(m_drawPile.empty())
-		{
-			ShuffleDeck();
-
-			if(m_drawPile.empty())
-			{
-				m_listener->OnMessage("draw_pile_empty");
-				break;
-			}
-		}
-
-		auto card = m_drawPile.back();
-		m_drawPile.pop_back();
-
-		m_table.push_back(card);
-
-		drawnCards.push_back(card);
-	}
-
-	m_listener->OnCardDrawToTable(Convert(drawnCards));
-
-	PrintPiles();
-}
-
-void CombatModel::Draw(size_t count)
-{
-	std::vector<Card *> drawnCards;
-
-	while(drawnCards.size() < std::min(count, m_maxHandSize))
-	{
-		if(m_drawPile.empty())
-		{
-			ShuffleDeck();
-
-			if(m_drawPile.empty())
-			{
-				m_listener->OnMessage("draw_pile_empty");
-				break;
-			}
-		}
-
-		auto card = m_drawPile.back();
-		m_drawPile.pop_back();
-
-		m_hand.push_back(card);
-
-		drawnCards.push_back(card);
-	}
-
-	m_listener->OnCardsDrawn(Convert(drawnCards));
-
-	PrintPiles();
-}
-
-void CombatModel::DrawUntilHandFull()
-{
-	std::vector<Card *> drawnCards;
-
-	while(m_hand.size() <= m_maxHandSize)
-	{
-		if(m_drawPile.empty())
-		{
-			ShuffleDeck();
-
-			if(m_drawPile.empty())
-			{
-				m_listener->OnMessage("draw_pile_empty");
-				break;
-			}
-		}
-
-		auto card = m_drawPile.back();
-		m_drawPile.pop_back();
-
-		m_hand.push_back(card);
-
-		drawnCards.push_back(card);
-	}
-
-	m_listener->OnCardsDrawn(Convert(drawnCards));
-
-	PrintPiles();
-}
-
-void CombatModel::Discard(ObjectID cardID)
-{
-	Logger::log(LogLevel::Info, "trying to discard: {}", cardID);
-
-	std::vector<Card *> hand;
-	std::vector<Card *> discarded;
-
-	auto card = m_cardOC.at(cardID);
-
-	for(auto _card : m_hand)
-	{
-		if(_card != card) hand.push_back(_card);
-		else discarded.push_back(_card);
-	}
-
-	if(discarded.empty())
-	{
-		Logger::log(LogLevel::Error, "why empty");
-	}
-
-	m_hand = hand;
-	m_discardPile.insert(m_discardPile.end(), discarded.begin(), discarded.end());
-
-	m_listener->OnCardsDiscarded(Convert(discarded));
-
-	PrintPiles();
-}
-
-void CombatModel::Exhaust(ObjectID cardID)
-{
-
-}
-
-void CombatModel::DiscardHand()
-{
-	std::vector<ObjectID> discardedCards;
-
-	while(m_hand.size() != 0)
-	{
-		auto card = m_hand.back();
-		m_hand.pop_back();
-
-		m_discardPile.emplace_back(card);
-	}
-
-	m_listener->OnCardsDiscarded(discardedCards);
-
-	PrintPiles();
-}
-
-void CombatModel::StartPlayerTurn()
-{
-	// Resolve effects and statuses
-
-	ShuffleDeck();
-	Draw(m_handSize);
-}
-
-void CombatModel::EndPlayerTurn()
-{
-	// Resolve effects and statuses
-
-	DiscardHand();
-}
-
-void CombatModel::PlayCard(ObjectID cardID)
-{
-	// logic here
-	auto card = m_cardOC.at(cardID);
-	if (!card)
+	if (!m_registeredCards.contains(card))
 		return;
 
+	Logger::log(LogLevel::Info, "Player plays {}", card->GetName());
 
 	std::vector<Entity*> targets = { m_enemy.get() };
 
 	EffectContext ctx;
-	ctx.source       = m_player.get();
-	ctx.targets      = targets;
-	ctx.cardSource   = card;
-	ctx.scorePile    = &m_capturePile;
-	ctx.table        = &m_table;
 	ctx.observer     = this;
+	ctx.entitySource = m_player.get();
+	ctx.cardSource   = card;
+	ctx.targets      = targets;
 
 	for (auto & effect : card->GetEffects())
 	{
@@ -277,73 +88,197 @@ void CombatModel::PlayCard(ObjectID cardID)
 
 	auto capturedIndices = FindCaptureIndices(card, targetVal);
 
-	std::vector<Card *> captured;
-	captured.emplace_back(card);
-
 	if (!capturedIndices.empty())
 	{
 		playerCaptures++;
-        std::cout << " -> CAPTURE! ";
+		Logger::log(LogLevel::Info, "> Player Capture");
 
 		CaptureEvent evt;
 		evt.playedCard = card;
 		evt.player     = m_player.get();
 		evt.enemy      = m_enemy .get();
-		evt.scorePile  = &m_capturePile;
 
+		evt.captured.push_back(card);
         for (int idx : capturedIndices)
 		{
-            std::cout << m_table[idx]->GetName() << " ";
-
-			evt.captured.push_back(m_table[idx]);
-            m_capturePile.push_back(std::move(m_table[idx]));
+			evt.captured.push_back(m_table.at(idx));
+            m_playerPiles.insert(card, CardPiles::Capture);
         }
-
-        std::cout << "!" << std::endl;
-
-		//for (auto& r : m_player->getRelics()) {
-		//	r->onCapture(evt);
-		//}
-
+		
+		// remove captured card on the table
         std::sort(capturedIndices.rbegin(), capturedIndices.rend());
-
         for (int idx : capturedIndices)
-		{
-			captured.emplace_back(m_table.at(idx));
             m_table.erase(m_table.begin() + idx);
-		}
         
         if (m_table.empty())
 		{
             ++scopaCount;
-            std::cout
-			<< " SCOPA! Table cleared ("
-			<< scopaCount
-			<< " sweep"
-			<< (scopaCount > 1 ? "s" : "")
-			<< " total) "
-			<< std::endl;
+	        Logger::log(LogLevel::Info, "> Player Scopa");
+
         }
 
-		auto it = std::find(m_hand.begin(), m_hand.end(), card);
-		m_hand.erase(it);
-
-		captured.emplace_back(card);
-		m_listener->OnCardsCaptured(Convert(captured));
+		m_playerPiles.remove(card, CardPiles::Hand);
+		m_listener->OnCardsCaptured(evt.captured);
     }
 	else
 	{
-        std::cout << " -> No capture. Card added to table." << std::endl;
+		Logger::log(LogLevel::Info, "> Player added a card to table");
         m_table.push_back(card);
-
-		auto it = std::find(m_hand.begin(), m_hand.end(), card);
-		m_hand.erase(it);
+		m_playerPiles.remove(card, CardPiles::Hand);
 		
-		m_listener->OnCardPlacedOnTable(GetObjectID(card));
+		m_listener->OnCardPlacedOnTable(card);
     }
 	
-	// numerically end turn here
+	EndPlayerTurn();
+}
+
+void CombatModel::EndPlayerTurn()
+{
+	// Resolve effects and statuses
 	m_listener->OnPlayerEndTurn();
+}
+
+void CombatModel::UpdateEntitiesState()
+{
+	if(!m_player->isAlive())
+	{
+		m_listener->OnPlayerDeath();
+	}
+	else if(!m_enemy->isAlive())
+	{
+		m_listener->OnEnemyDeath();
+	}
+}
+
+void CombatModel::BeginEnemyTurn()
+{
+	m_listener->OnEnemyBeginTurn();
+
+	if (turn == 1)
+	{
+		std::vector<Card *> drawnCards = m_enemyPiles.draw(3);
+		m_enemyPiles.insert(drawnCards, CardPiles::Hand);
+	}
+	else
+	{
+		std::vector<Card *> drawnCards = m_enemyPiles.draw(1);
+		m_enemyPiles.insert(drawnCards, CardPiles::Hand);
+	}
+
+	// update statuses
+	// play enemy turn here
+	m_enemy->planTurn(m_enemyPiles.hand, m_table);
+	auto card = m_enemy->executeTurn(m_enemyPiles.hand);
+
+	if (!card)
+	{
+		Logger::log(LogLevel::Info, "Enemy has no card to play");
+		m_listener->OnEnemyEndTurn();
+		return;
+	}
+
+	std::vector<Entity*> targets = { m_player.get() };
+
+	if (m_enemy->hasStatus("Confusion"))
+	{
+		Logger::log(LogLevel::Info, "[enemy is Confused and targets itself!]");
+		targets = { m_enemy.get() };
+	}
+
+	EffectContext ctx;
+	ctx.observer     = this;
+	ctx.entitySource = m_enemy.get();
+	ctx.cardSource   = card;
+	ctx.targets      = targets;
+
+	for (auto & effect : card->GetEffects())
+	{
+		std::cout << " [Effect]: " << effect->getDescription() << std::endl;
+		effect->apply(ctx);
+	}
+
+	int targetVal = card->GetNumericValue();
+
+	auto capturedIndices = FindCaptureIndices(card, targetVal);
+
+	if (!capturedIndices.empty())
+	{
+		enemyCaptures++;
+        Logger::log(LogLevel::Info, "> Enemy Capture");
+
+		CaptureEvent evt;
+		evt.playedCard = card;
+		evt.player     = m_player.get();
+		evt.enemy      = m_enemy .get();
+
+		evt.captured.push_back(card);
+        for (int idx : capturedIndices)
+		{
+			evt.captured.push_back(m_table.at(idx));
+            m_enemyPiles.insert(card, CardPiles::Capture);
+        }
+		
+		// remove captured card on the table
+        std::sort(capturedIndices.rbegin(), capturedIndices.rend());
+        for (int idx : capturedIndices)
+            m_table.erase(m_table.begin() + idx);
+        
+        if (m_table.empty())
+		{
+			Logger::log(LogLevel::Info, "Enemy Scopa");
+        }
+
+		// card already removed from hand with execute turn
+		m_listener->OnCardsCaptured(evt.captured);
+    }
+	else
+	{
+		Logger::log(LogLevel::Info, "[Enemy] Added card to table");
+        m_table.push_back(card);
+		// card already removed from hand with execute turn
+		
+		m_listener->OnCardPlacedOnTable(card);
+    }
+	
+	m_listener->OnEnemyEndTurn();
+}
+
+void CombatModel::DrawToTable(int count)
+{
+	std::vector<Card *> drawnCards = m_playerPiles.draw(count);
+	if (drawnCards.empty()) return;
+
+	m_table.insert(m_table.end(), drawnCards.begin(), drawnCards.end());
+	m_listener->OnCardsDrawnToTable(drawnCards);
+}
+
+void CombatModel::DrawToHand(int count)
+{
+	std::vector<Card *> drawnCards = m_playerPiles.draw(count);
+	if (drawnCards.empty()) return;
+
+	m_playerPiles.insert(drawnCards, CardPiles::Hand);
+	m_listener->OnCardsDrawnToHand(drawnCards);
+}
+
+void CombatModel::DrawUntilHandFull()
+{
+	int count = m_maxHandSize - m_playerPiles.hand.size();
+	std::vector<Card *> drawnCards = m_playerPiles.draw(count);
+	if (drawnCards.empty()) return;
+
+	m_playerPiles.insert(drawnCards, CardPiles::Hand);
+	m_listener->OnCardsDrawnToHand(drawnCards);
+}
+
+void CombatModel::Discard(Card * card)
+{
+	// discard code
+}
+
+void CombatModel::Exhaust(Card * card)
+{
+	// exhaust code
 }
 
 void CombatModel::Damage(Entity * dst, uint32_t calculatedDamage, Entity * source, bool isEcho)
@@ -363,45 +298,17 @@ void CombatModel::Damage(Entity * dst, uint32_t calculatedDamage, Entity * sourc
 
 }
 
-void CombatModel::Death(ObjectID source, ObjectID target)
+void CombatModel::ChangeCardSuit(Card * card, Suit suit)
 {
-	// Resolve effects and statuses
+	card->SetSuit(suit);
+	m_listener->OnCardUpdate(card);
+
 }
 
-void CombatModel::UpdateEntitiesState()
+void CombatModel::ChangeCardValue(Card * card, CardValue value)
 {
-	if(!m_player->isAlive())
-	{
-		m_listener->OnPlayerDeath();
-	}
-	else if(!m_enemy->isAlive())
-	{
-		m_listener->OnEnemyDeath();
-	}
-}
-
-std::string CombatModel::GetCardDescription(ObjectID card)
-{
-	if(m_cardOC.find(card) == m_cardOC.end())
-		return "invalid cardID";
-
-	return m_cardOC.at(card)->GetDescription();
-}
-
-std::string CombatModel::GetCardName(ObjectID card)
-{
-	if(m_cardOC.find(card) == m_cardOC.end())
-		return "invalid cardID";
-
-	return m_cardOC.at(card)->GetName();
-}
-
-void CombatModel::RegisterCard(ObjectID cardID, Card * card)
-{
-	m_cardOC.emplace(cardID, card);
-	m_cardCO.emplace(card, cardID);
-
-	m_drawPile.emplace_back(card);
+	card->SetValue(value);
+	m_listener->OnCardUpdate(card);
 }
 
 std::vector<int> CombatModel::FindCaptureIndices(
@@ -433,26 +340,5 @@ std::vector<int> CombatModel::FindCaptureIndices(
     }        
 
     return {};
-}
-
-void CombatModel::ChangeCardSuit(ObjectID cardID, Suit suit)
-{
-	auto card = GetCard(cardID);
-	if (card)
-		ChangeCardSuit(card, suit);
-
-}
-
-void CombatModel::ChangeCardSuit(Card * card, Suit suit)
-{
-	card->SetSuit(suit);
-	m_listener->OnCardUpdate(GetObjectID(card), card->GetValue(), card->GetSuit(), card->GetName(), card->GetDescription());
-}
-
-
-CombatModel::CombatModel(CombatModelListener * listener):
-	m_listener {listener}
-{
-
 }
 

@@ -19,21 +19,19 @@ enum class TargetType {
 };
 
 struct EffectContext {
-    Entity * source;
-    std::vector<Entity *> targets;
-    Card * cardSource;
-	std::vector<Card *> * scorePile = nullptr;
-	std::vector<Card *> * table     = nullptr;
 	CombatModel * observer;
+    Entity      * entitySource;
+    Card        * cardSource;
+    std::vector<Entity *> targets;
 
     std::vector<Entity*> getTargets(TargetType type) {
         switch (type) {
-            case TargetType::Self: return {source};
+            case TargetType::Self: return {entitySource};
             case TargetType::Enemy: return targets; 
             case TargetType::AllEnemies: return targets;
             case TargetType::All: {
                 std::vector<Entity*> all = targets;
-                all.push_back(source);
+                all.push_back(entitySource);
                 return all;
             }
             default: return targets;

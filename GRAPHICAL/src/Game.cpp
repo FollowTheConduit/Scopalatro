@@ -23,6 +23,7 @@ Game::Game(
 	Setup();
 
 	InitPlayerDeck();
+	InitEnemyDeck();
 
 	auto param = GenerateCombatParameters();
 
@@ -44,6 +45,11 @@ void Game::InitPlayerDeck()
 	m_playerDeck.BuildScopaDeck();
 }
 
+void Game::InitEnemyDeck()
+{
+	m_enemyDeck.BuildScopaDeck(false);
+}
+
 CombatParams Game::GenerateCombatParameters()
 {
 	CombatParams combatParams;
@@ -55,7 +61,11 @@ CombatParams Game::GenerateCombatParameters()
 		combatParams.playerCards.emplace_back(card.get());
 	}
 
-	combatParams.enemies     = {};
+	for (auto & card : m_enemyDeck.GetCards())
+	{
+		combatParams.enemyCards.push_back(card.get());
+	}
+
 	combatParams.playerItems = {};
 
 	return combatParams;

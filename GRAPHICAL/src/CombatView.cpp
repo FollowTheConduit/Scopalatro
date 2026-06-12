@@ -23,6 +23,35 @@ static bool PointInRect(float x, float y, glm::vec4 rect)
 
 // Public =>
 
+CombatView::CombatView(CombatViewListener * subscriber, TLOT::RenderContext * context, Renderer * renderer, TLOT::SceneInspector * inspector)
+	: m_subscriber {subscriber}
+	, m_context {context}
+	, m_renderer {renderer}
+	, m_inspector {inspector}
+{
+
+}
+
+CardModel * CombatView::RegisterCard(Card * card)
+{
+	auto it = m_cards.emplace(std::make_unique<CardModel>(m_renderer, card->GetSuit(), card->GetValue()));
+	auto actor = it.first->get();
+
+	actor->SetScale({m_cardSize, m_cardSize, 1.0f});
+	actor->SetPosition({-1000.0f, 0.0f, 0.0f});
+	actor->SetPivot({0.5f, 0.5f, 0.0f});
+
+	actor->SetTooltip(card->GetName(), card->GetDescription());
+
+	return actor;
+}
+
+void CombatView::UpdateCard(CardModel * actor, Card * card)
+{
+	actor->UpdateSymbol(card->GetSuit(), card->GetValue());
+	actor->SetTooltip(card->GetName(), card->GetDescription());
+}
+
 void CombatView::Init()
 {
 	float width  = (float)m_context->GetViewport().width;
@@ -33,281 +62,311 @@ void CombatView::Init()
 	m_hand.width    = 10 * m_cardSize;
 	m_hand.beginX   =(width - m_hand.width) / 2;
 
-	m_play.actorID = m_subscriber->GenerateObject();
 	m_play.beginX  = m_hand.beginX;
 	m_play.beginY  = m_cardSize * 2.3;
 	m_play.width   = m_hand.width;
 	m_play.height  =(height -(m_play.beginY)) * 0.8f;
-
-	m_primaryEnemyX = 0.0f;
-	m_primaryEnemyY = 0.4f;
-	m_primaryEnemyZ = 3.0f;
-	m_enemyScale    = 2.0f;
 
 	m_table.beginY   = m_play.beginY + m_cardSize * 1.0;
 	m_table.beginX   = width / 2.0;
 	m_table.cardSize = m_cardSize;
 
 	m_playerHealthbar = std::make_unique<HealthbarModel>(m_renderer, 0.0, 0.0);
-	m_playerHealthbar->SetPosition({33, (height - m_playerHealthbar->GetWidth()) / 2, 2.}); // width instead because we rotate the bar internally
-	m_inspector->RegisterRenderableObject(m_playerHealthbar.get());
+	m_playerHealthbar->SetPosition(
+		{33, (height - m_playerHealthbar->GetWidth()) / 2, 2.}
+	); // width instead because we rotate the bar internally
 
 	m_enemyHealthbar = std::make_unique<HealthbarModel>(m_renderer, 0.0, 0.0, false);
-	m_enemyHealthbar->SetPosition({ width - 33 - (m_enemyHealthbar->GetHeight() / 2), (height - m_enemyHealthbar->GetWidth()) / 2, 2.}); // width instead because we rotate the bar internally
-	m_inspector->RegisterRenderableObject(m_enemyHealthbar.get());
+	m_enemyHealthbar->SetPosition(
+		{
+			width - 33 - (m_enemyHealthbar->GetHeight() / 2),
+			(height - m_enemyHealthbar->GetWidth()) / 2,
+			2.
+		}
+	); // width instead because we rotate the bar internally
 
-	m_turnDisplay = std::make_unique<TextObject>(m_renderer, TLOT::AssetManager::Cache("font_hh_light"), TLOT::AssetManager::Cache("font_hh_it"), TLOT::AssetManager::Cache("font_hh_bold"));
+	m_turnDisplay = std::make_unique<TextObject>(
+		m_renderer,
+		TLOT::AssetManager::Cache("font_hh_light"),
+		TLOT::AssetManager::Cache("font_hh_it"),
+		TLOT::AssetManager::Cache("font_hh_bold")
+	);
+
+	m_turnDisplay->IsVisible(false);
 }
+
 
 void CombatView::Update()
 {
-	m_delta = m_context->deltaTime;
+    m_delta = m_context->deltaTime;
 
-	bool inPlayArea = false;
+    //--------------------------------------
+    // Input
+    //--------------------------------------
 
-	double mouseX, mouseY;
-	InputManager::getInstance().getMousePos(mouseX, mouseY);
-	mouseY = m_context->GetViewport().height - mouseY;
+    double mouseX, mouseY;
+    InputManager::getInstance().getMousePos(mouseX, mouseY);
 
-	double vWidth = m_context->GetViewport().width;
-	double vHeight = m_context->GetViewport().height;
+    mouseY = m_context->GetViewport().height - mouseY;
 
-	bool leftPressed  = InputManager::getInstance().isMouseButtonPressed (GLFW_MOUSE_BUTTON_1);
-	bool leftReleased = InputManager::getInstance().isMouseButtonReleased(GLFW_MOUSE_BUTTON_1);
-	
+    bool leftPressed  = InputManager::getInstance().isMouseButtonPressed(GLFW_MOUSE_BUTTON_1);
+    bool leftReleased = InputManager::getInstance().isMouseButtonReleased(GLFW_MOUSE_BUTTON_1);
 
+    //--------------------------------------
+    // Debug
+    //--------------------------------------
 
-	if(PointInRect(mouseX, mouseY, {m_play.beginX, m_play.beginY, m_play.width, m_play.height}))
-		inPlayArea = true;
+    if (InputManager::getInstance().isKeyPressed(GLFW_KEY_D))
+        m_subscriber->DebugDrawCard();
+
+    //--------------------------------------
+    // Disable input
+    //--------------------------------------
+
+    if (!m_canInput)
+    {
+        leftPressed  = false;
+        leftReleased = false;
+    }
+
+    //--------------------------------------
+    // Play area detection
+    //--------------------------------------
+
+    bool inPlayArea =
+        PointInRect(
+            mouseX,
+            mouseY,
+            {
+                m_play.beginX,
+                m_play.beginY,
+                m_play.width,
+                m_play.height
+            });
+
+    //--------------------------------------
+    // Hover detection
+    //--------------------------------------
+
+    CardModel* hoveredCard = nullptr;
+
+    if (m_canInput)
+        hoveredCard = GetHoveredCard();
+
+    //--------------------------------------
+    // Hover transitions
+    //--------------------------------------
+	HoverType hoverType = HoverType::None;
+
+	if (hoveredCard && !m_cardDraggedCurrent)
+	{
+		m_hoverMap.Hover(hoveredCard, m_delta);
+
+		hoverType = m_hoverMap.GetHover(hoveredCard);
+	}
+
+    if (hoveredCard != m_cardHoveredCurrent)
+    {
+        if (m_cardHoveredCurrent && !m_cardDraggedCurrent)
+        {
+            StopHoverCard(m_cardHoveredCurrent);
+        }
+
+        if (hoveredCard && !m_cardDraggedCurrent)
+        {
+			
+			//auto hoverResult = m_hoverMap.GetHover(hoveredCard); <-- arrange les correctement
+            StartHoverCard(hoveredCard);
+        }
+
+        m_cardHoveredCurrent = hoveredCard;
+    }
+
+	if (hoveredCard)
+		UpdateHover(hoveredCard, hoverType, m_delta);
+
+    //--------------------------------------
+    // Drag begin
+    //--------------------------------------
+
+    if (leftPressed &&
+        hoveredCard &&
+        !m_cardDraggedCurrent)
+    {
+		m_cardDraggedCurrent = hoveredCard;
 		
-	std::map<ObjectID, glm::mat4> hoveredObjects = GetHoveredObjects();
-	for (auto & [id, transform] : hoveredObjects)
-		m_hoverMap.Hover(id, m_delta);
+		if (m_table.GetIndex(m_cardDraggedCurrent) != static_cast<size_t>(-1))
+			m_cardDraggedCurrent = nullptr;
 
-	m_hoveredCardID = InvalidObject;
-	ObjectID tooltipCandidate = InvalidObject;
-	for (auto & [id, _] : m_hand)
-	{
-		auto result = m_hoverMap.GetHover(id);
+        StartDraggingCard(m_cardDraggedCurrent);
+    }
 
-		if (result >= HoverType::Short)
-			m_hoveredCardID = id;
+    //--------------------------------------
+    // Drag update
+    //--------------------------------------
 
-		if (result >= HoverType::Medium && m_lastDraggedCardID == InvalidObject)
-			tooltipCandidate = id;
-	}
+    if (m_cardDraggedCurrent)
+    {
+        DragCard(
+            m_cardDraggedCurrent,
+            glm::vec2(mouseX, mouseY),
+			m_delta);
 
-	if (!m_canInput)
-	{
-		m_hoveredCardID = InvalidObject;
-		m_lastHoveredCardID = InvalidObject;
+		//Logger::log(LogLevel::Info, "dragging");
+    }
 
-		m_draggedCardID = InvalidObject;
-		m_lastDraggedCardID = InvalidObject;
+    //--------------------------------------
+    // Drag end
+    //--------------------------------------
 
-		tooltipCandidate = InvalidObject;
+    if (leftReleased &&
+        m_cardDraggedCurrent)
+    {
+        DropCard(
+            m_cardDraggedCurrent,
+            inPlayArea);
 
-		leftPressed = false;
-		leftReleased = false;
-		inPlayArea = false;
-	}
+        m_cardDraggedCurrent = nullptr;
+    }
 
-	if (tooltipCandidate != InvalidObject)
-		GenerateTooltip(tooltipCandidate);
+    //--------------------------------------
+    // Updates
+    //--------------------------------------
 
-	if (leftPressed && m_hoveredCardID != InvalidObject)
-	{
-		m_draggedCardID = m_hoveredCardID;
-		m_hoveredCardID = InvalidObject;
-	}
-	else if (leftReleased && m_draggedCardID != InvalidObject)
-	{
-		m_hand.SetDrag(InvalidObject);
-		m_hand.SetHover(InvalidObject);
+	//for (auto task : m_modelAnimationStack)
+	//{
+	//	if (m_taskManager.IsTaskAlive(task))
+	//		break;
+//
+	//	m_modelAnimationStack.erase(m_modelAnimationStack.begin());
+	//	m_taskManager.StartTask(m_modelAnimationStack[0]);
+	//	break;
+	//}
 
-		if (inPlayArea)
-		{
-			m_subscriber->OnCardDropInPlayArea(m_draggedCardID);
-		}
-		
-		m_draggedCardID = InvalidObject;
-		m_hoveredCardID = InvalidObject;
-	}
-
-	if (m_hoveredCardID != InvalidObject)
-	{
-		HoverCard();
-
-		if (m_hoveredCardID != m_lastHoveredCardID && m_lastHoveredCardID != InvalidObject)
-			DestroyTooltip(m_lastHoveredCardID);
-	}
-	else if (m_hoveredCardID == InvalidObject)
-	{
-		UnhoverCard();
-
-		if (m_draggedCardID == InvalidObject)
-			DestroyTooltip(m_lastHoveredCardID);
-	}
-	
-	if (m_draggedCardID != InvalidObject)
-	{
-		DragCard();
-	}
-	else if (m_draggedCardID == InvalidObject)
-	{
-		DropCard(inPlayArea);
-		DestroyTooltip(m_lastDraggedCardID);
-	}
-
-	for (auto & [cardID, tooltipActor] : m_activeTooltips)
-	{
-		auto card = m_cards.at(cardID);
-
-		tooltipActor->SetPosition(card.GetPosition() + glm::vec3 {card.GetScale().x * 0.65, card.GetScale().y - tooltipActor->GetHeight(), 0.1f});
-	}
-
-	m_hoverMap.Update();
-	m_taskManager.Update(m_context->deltaTime);
-	m_lastHoveredCardID = m_hoveredCardID;
-	m_lastDraggedCardID = m_draggedCardID;
-
-	// Debug stuff	
-	DebugRenderer::Get().CreateRect(hoveredObjects[m_hoveredCardID],                             {0.812, 0.729, 0.000});
-	DebugRenderer::Get().CreateRect({0.0, 0.0, m_hand.beginX, 30.0},                             {0.600, 0.043, 0.518}, true);
-	DebugRenderer::Get().CreateRect({m_hand.beginX + m_hand.width, 0.0, m_hand.beginX, 30.0},    {0.600, 0.043, 0.518}, true);
-	DebugRenderer::Get().CreateRect({m_hand.beginX, 0.0, m_hand.width, 30.0},                    {0.055, 0.039, 0.259}, true);
-
-	if(inPlayArea) DebugRenderer::Get().CreateRect({m_play.beginX, m_play.beginY, m_play.width, m_play.height}, {0.812, 0.729, 0.000}, false);
-	else           DebugRenderer::Get().CreateRect({m_play.beginX, m_play.beginY, m_play.width, m_play.height}, {0.000, 1.000, 0.220}, false);
-	if(InputManager::getInstance().isKeyPressed(GLFW_KEY_D)) m_subscriber->DebugDrawCard();
+    m_hoverMap.Update();
+    m_taskManager.Update(m_context->deltaTime);
 }
 
 void CombatView::Render()
 {
-	for (auto & [cardID, actor] : m_cards)
-	{
-		actor.Render();
-	}
-
-	for (auto & [_, actor] : m_activeTooltips)
+	for (auto & actor : m_cards)
 	{
 		actor->Render();
 	}
 
 	m_playerHealthbar->Render();
 	m_enemyHealthbar->Render();
+
 	m_turnDisplay->Render();
 }
 
 // Warning: right now, it can't be spammed, otherwise it will have a ugly effect
-void CombatView::DrawCards(std::vector<ObjectID> cards)
+TaskID CombatView::DrawCardsToHand(std::vector<CardModel *> cards)
 {
-	// if card stack is empty we do nothing
 	if(cards.empty())
-	{
 		return;
+
+	std::map<CardModel *, size_t> handCopy; 
+	handCopy.insert(m_hand.begin(), m_hand.end());
+
+	for(auto actor : cards)
+	{
+		m_hand.AddCard(actor);
 	}
 
-	// resets hover and drag states
-	m_canHover = false;
-	m_canDrag  = false;
-	m_hoveredCardID = InvalidObject;
-	m_draggedCardID = InvalidObject;
 
-	TaskID switchBackStatesTask = m_taskManager.RegisterTask([this](TaskID ID, double progress, double deltaTime) -> TaskResult
+	// Rearange hand
+	for (auto & [actor, index] : handCopy)
 	{
-		m_canHover = true;
-		m_canDrag  = true;
+		auto task = GenerateMoveCardTask(actor, m_hand.GetCardPos(actor), m_hand.GetCardSize(actor), 1.0f, easeInOutCirc);
+		m_taskQueue.PushCancel(reinterpret_cast<uint64_t>(actor), task);
+	}
 
-		Logger::log(LogLevel::Info, "canHover=true; canDrag=true");
-
-		return TaskResult::Return;
-	});
-
-	std::map<ObjectID, size_t> cardsAlreadyInHand;
-	cardsAlreadyInHand.insert(m_hand.begin(), m_hand.end());
-
-	for(auto & ID : cards)
-		m_hand.AddCard(ID);
-
-	TaskID lastTask;
-	size_t index = 0;
-	for(auto & cardID : cards)
+	int index = 0;
+	double timeOffset = handCopy.empty() ? 1.0 : 0.0;
+	TaskID task;
+	for (auto & actor : cards)
 	{
-		m_cards.at(cardID).SetPosition({ -100 + index * m_cardSize, m_context->GetViewport().height + m_cardSize * 5, 0.0 });
-		lastTask = GenerateMoveCardTask(cardID, m_hand.GetCardPos(cardID), m_hand.GetCardSize(cardID), 1.0f, easeInOutCirc);
-		m_taskManager.StartTask(lastTask, index * 0.25);
-
+		actor->SetPosition({ -100 + index * m_cardSize, m_context->GetViewport().height + m_cardSize * 5, 0.0 });
+		task = GenerateMoveCardTask(actor, m_hand.GetCardPos(actor), m_hand.GetCardSize(actor), 1.0f, easeInOutCirc);
+		m_taskQueue.PushCancel(reinterpret_cast<uint64_t>(actor), task, timeOffset + index * 0.25);
 		++index;
 	}
 
-	for(auto & [cardID, index] : cardsAlreadyInHand)
-	{
-		m_taskManager.StartTask(GenerateMoveCardTask(cardID, m_hand.GetCardPos(cardID), m_hand.GetCardSize(cardID), 1.0f, easeInOutCirc));
-	}
+	return task;
 
-	m_taskManager.StartTaskAfter(switchBackStatesTask, lastTask);
+	//m_modelAnimationStack.push_back(task); // we wait for this one to finish before we can start another one
+
+	//RearangeHandCards();
 }
 
-
-void CombatView::DiscardCards(std::vector<ObjectID> cards)
+TaskID CombatView::DrawCardsToTable(std::vector<CardModel *> cards)
 {
-	if(cards.empty()) return;
+	if(cards.empty())
+		return;
 
-	for(auto cardID : cards)
+	for (auto actor : cards)
 	{
-		m_hand.RemoveCard(cardID);
-
-		auto & card = m_cards.at(cardID);
-
-		auto taskID = GenerateMoveCardTask(cardID, {3000., -500., 0.}, glm::vec3 {m_cardSize}, 3.0f, easeInOutCirc);
-		m_taskQueue.PushCancel(cardID, taskID);
+		m_table.AddCard(actor);
 	}
 
-	TaskID lastTaskID;
-	for(auto & [cardID, index] : m_hand)
-	{
-		lastTaskID = GenerateMoveCardTask(cardID, m_hand.GetCardPos(cardID), m_hand.GetCardSize(cardID), 3.0f, easeInOutCirc);
-		m_taskQueue.PushCancel(cardID, lastTaskID);
-	}
-
-	m_canHover = true;
-	m_canDrag  = true;
-	m_hoveredCardID = InvalidObject;
-	m_draggedCardID = InvalidObject;
+	return RearangeTableCards();
 }
 
-void CombatView::ExhaustCards(std::vector<ObjectID> cards)
+TaskID CombatView::DiscardCards(std::vector<CardModel *> cards)
 {
+	if(cards.empty())
+		return;
 
+	// TODO : implement discard
+
+	return SentinelTask;
 }
 
-void CombatView::CaptureCards(std::vector<ObjectID> cards)
+TaskID CombatView::CaptureCards(std::vector<CardModel *> cards)
 {
 	TaskID lastTaskID;
 	size_t index = 0; // ideally we sort cards by distance to target so we get more of a fan effect
-	for(auto & cardID : cards)
+	for(auto actor : cards)
 	{
-		lastTaskID = GenerateMoveCardTask(cardID, glm::vec3{200.0, 1000.0, 1.0}, glm::vec3{m_cardSize, m_cardSize, 1.0}, 3.0f, easeInOutCirc);
-		m_taskQueue.PushCancel(cardID, lastTaskID, 0.5 * index);
+		lastTaskID = GenerateMoveCardTask(actor, glm::vec3{200.0, 1000.0, 1.0}, glm::vec3{m_cardSize, m_cardSize, 1.0}, 3.0f, easeInOutCirc);
+		m_taskQueue.PushCancel(reinterpret_cast<uint64_t>(actor), lastTaskID, 0.5 * index);
 		index++;
 
-		m_table.RemoveCard(cardID); // remove the capture cards
-		m_hand.RemoveCard(cardID);  // remove the capturing card
+		m_table.RemoveCard(actor); // remove the capture cards
+		m_hand.RemoveCard(actor);  // remove the capturing card
 	}
 
-	RearangeTableCards();
+	return RearangeTableCards();
 }
 
-void CombatView::UpdatePlayerHealth(int targetHP, int targetMaxHP)
+TaskID CombatView::ExhaustCards(std::vector<CardModel *> cards)
+{
+	if(cards.empty())
+		return;
+
+	// TODO : implement exhaust
+
+	return SentinelTask;
+}
+
+TaskID CombatView::PlaceCardOnTable(CardModel * actor)
+{
+	m_hand.RemoveCard(actor);
+	m_table.AddCard(actor);
+
+	return RearangeTableCards();
+}
+
+TaskID CombatView::UpdatePlayerHealth(int targetHP, int targetMaxHP)
 {
 	auto oldHealth = m_playerHealthbar->GetHealth();
 
 	float startHP    = oldHealth.first;
 	float startMaxHP = oldHealth.second;
 
-	m_taskManager.StartTask(
-		m_taskManager.RegisterTask([=, this] (TaskID ID, double progress, double deltaTime) mutable -> TaskResult
+	auto task = m_taskManager.RegisterTask(
+		[=, this] (TaskID ID, double progress, double deltaTime) mutable -> TaskResult
 		{
 			progress *= 0.5;
 
@@ -322,19 +381,22 @@ void CombatView::UpdatePlayerHealth(int targetHP, int targetMaxHP)
 				return TaskResult::Return;
 
 			return TaskResult::Yield;
-		})
+		}
 	);
+
+	m_taskManager.StartTask(task);
+	return task;
 }
 
-void CombatView::UpdateEnemyHealth(int targetHP, int targetMaxHP)
+TaskID CombatView::UpdateEnemyHealth(int targetHP, int targetMaxHP)
 {
 	auto oldHealth = m_enemyHealthbar->GetHealth();
 
 	float startHP    = oldHealth.first;
 	float startMaxHP = oldHealth.second;
 
-	m_taskManager.StartTask(
-		m_taskManager.RegisterTask([=, this] (TaskID ID, double progress, double deltaTime) mutable -> TaskResult
+	auto task = m_taskManager.RegisterTask(
+		[=, this] (TaskID ID, double progress, double deltaTime) mutable -> TaskResult
 		{
 			progress *= 0.5;
 
@@ -349,123 +411,180 @@ void CombatView::UpdateEnemyHealth(int targetHP, int targetMaxHP)
 				return TaskResult::Return;
 
 			return TaskResult::Yield;
-		})
+		}
 	);
+
+	m_taskManager.StartTask(task);
+	return task;
 }
 
-void CombatView::UpdateCardModel(ObjectID cardId, CardValue value, Suit suit)
+TaskID CombatView::DisplayTurnNumber(int turnCount)
 {
-	if (m_cards.find(cardId) == m_cards.end())
-		return;
+	m_turnDisplay->SetText("{C:WHITE, S:BOLD}Beginning Turn " + std::to_string(turnCount), 44);
 
-	auto actor = m_cards.at(cardId);
-	actor.UpdateSymbol(suit, value);
-}
+	float x = (m_context->GetViewport().width - m_turnDisplay->GetWidth()) / 2.0f;
+	float y = (m_context->GetViewport().height - m_turnDisplay->GetHeight()) / 2.0f;
 
-void CombatView::UpdateCardDescription(ObjectID cardID, std::string name, std::string description)
-{
-	m_cardDescriptions[cardID] = std::pair<std::string, std::string> {name, description};
+	glm::vec3 startingPosition {x, 2000.0f, 3.01f};
+	glm::vec3 intermediatePosition {x, y, 3.01f};
+	glm::vec3 targetPosition {x, -2000.0f, 3.01f};
 
-	if (m_activeTooltips.find(cardID) == m_activeTooltips.end())
+	m_turnDisplay->SetPosition(startingPosition);
+
+	auto taskID = m_taskManager.RegisterTask([=, this](TaskID task, double progress, double deltaTime) -> TaskResult
 	{
-		name = "{C:BLUE, S:ITALIC}" + m_cardDescriptions.at(cardID).first;
-		description = m_cardDescriptions.at(cardID).second;
+		progress *= 0.25;
 
-		m_activeTooltips.at(cardID)->SetText(name, description);
-	}
+		if (progress < 0.45)
+		{
+			m_turnDisplay->IsVisible(true);
+			float localProgress = static_cast<float>(progress / 0.45);
+			float curve = easeInOutCirc(localProgress);
+
+			glm::vec3 currentPosition =
+				glm::mix(startingPosition, intermediatePosition, curve);
+
+			m_turnDisplay->SetPosition(currentPosition);
+		}
+		else if (progress < 0.55)
+		{
+			m_turnDisplay->SetPosition(intermediatePosition);
+		}
+		else if (progress < 1.0)
+		{
+			float localProgress =
+				static_cast<float>((progress - 0.55) / (1.0 - 0.55));
+
+			float curve = easeInOutCirc(localProgress);
+
+			glm::vec3 currentPosition =
+				glm::mix(intermediatePosition, targetPosition, curve);
+
+			m_turnDisplay->SetPosition(currentPosition);
+		}
+		else
+		{
+			m_turnDisplay->IsVisible(false);
+			m_turnDisplay->SetPosition(targetPosition);
+			return TaskResult::Return;
+		}
+
+		return TaskResult::Yield;
+	});
+
+	m_taskManager.StartTask(taskID, 1.03f);
+
+	return taskID;
 }
 
-void CombatView::SetPrimaryEnemy(ObjectID enemyID)
+TaskID CombatView::EnableUserInput()
 {
-	//m_primaryEnemyID = enemyID;
-//
-	//m_enemies[enemyID].SetPosition({m_primaryEnemyX, m_primaryEnemyY, m_primaryEnemyZ});
+	m_canInput = true;
+
+	return SentinelTask;
 }
 
-void CombatView::RegisterCard(ObjectID cardID, Suit suit, CardValue value, std::string name, std::string description)
+TaskID CombatView::DisableUserInput()
 {
-	CardModel actor {m_renderer, suit, value};
+	m_canInput = false;
 
-	actor.SetScale({m_cardSize, m_cardSize, 1.0f});
-	actor.SetPosition({-1000.0f, 0.0f, 0.0f});
-	actor.SetPivot({0.5f, 0.5f, 0.0f});
-
-	m_cards.emplace(cardID, std::move (std::move(actor)));
-	m_cardDescriptions.emplace(cardID, std::pair<std::string, std::string> {name, description});
-
-	m_inspector->RegisterRenderableObject(&m_cards.at(cardID));
-}
-
-//void CombatView::RegisterEnemiesActor(IndexedActorsTable enemies)
-//{
-//	m_enemies.insert(enemies.begin(), enemies.end());
-//
-//	for(auto & [ID, _] : enemies)
-//	{
-//		auto & actor = m_enemies[ID];
-//		actor.SetPosition({-1000.0f, 0.0f, 0.0f});
-//		actor.SetScale({m_enemyScale, m_enemyScale, 1.0f});
-//		actor.SetPivot(glm::vec3 {0., 0., 0.});
-//	}
-//}
-
-CombatView::CombatView(CombatViewListener * subscriber, TLOT::RenderContext * context, Renderer * renderer, TLOT::SceneInspector * inspector)
-	: m_subscriber {subscriber}
-	, m_context {context}
-	, m_renderer {renderer}
-	, m_inspector {inspector}
-{
-
+	return SentinelTask;
 }
 
 // Private =>
 
-std::map<ObjectID, glm::mat4> CombatView::GetHoveredObjects()
+std::vector<CardModel *> CombatView::GetHoveredCards()
 {
 	auto height = m_context->GetViewport().height;
 	
 	double mouseX, mouseY;
 	InputManager::getInstance().getMousePos(mouseX, mouseY);
 
-	std::map<ObjectID, glm::mat4> hoveredObjects;
-	for(auto const & [ID, actor] : m_cards)
+	std::vector<CardModel *> hovered;
+	for(auto & actor : m_cards)
 	{
-		if (actor.GetPosition().z < 0.0 || actor.GetPosition().z > 1.0)
+		if (actor->GetPosition().z < -10.0 || actor->GetPosition().z > 10.0)
 			continue;
-		glm::mat4 model = glm::scale(actor.GetTransformMatrix(), glm::vec3 {0.65, 1.0, 1.0});
-		
+
+		glm::mat4 model = glm::scale(actor->GetTransformMatrix(), glm::vec3 {0.65, 1.0, 1.0});
 		glm::mat4 invModel = glm::inverse(model);
 		glm::vec4 localMouse = invModel * glm::vec4(mouseX, height - mouseY, 0.0f, 1.0f);
 		
 		if(localMouse.x >= -1.0f && localMouse.x <= 1.0f && 
 			localMouse.y >= -1.0f && localMouse.y <= 1.0f)
 		{
-			hoveredObjects.emplace(ID, model);
+			hovered.emplace_back(actor.get());
+		}
+	}
+	
+	return hovered;
+}
+
+CardModel * CombatView::GetHoveredCard()
+{
+	auto height = m_context->GetViewport().height;
+
+	double mouseX, mouseY;
+	InputManager::getInstance().getMousePos(mouseX, mouseY);
+
+	CardModel* bestCard = nullptr;
+	float bestZ = -std::numeric_limits<float>::infinity();
+
+	for (auto& actor : m_cards)
+	{
+		float z = actor->GetPosition().z;
+
+		if (z < -10.0f || z > 10.0f)
+			continue;
+
+		glm::mat4 model = glm::scale(actor->GetTransformMatrix(), glm::vec3{0.65f, 1.0f, 1.0f});
+		glm::mat4 invModel = glm::inverse(model);
+
+		glm::vec4 localMouse =
+			invModel * glm::vec4(mouseX, height - mouseY, 0.0f, 1.0f);
+
+		if (localMouse.x >= -1.0f && localMouse.x <= 1.0f &&
+			localMouse.y >= -1.0f && localMouse.y <= 1.0f)
+		{
+			if (z > bestZ)
+			{
+				bestZ = z;
+				bestCard = actor.get();
+			}
 		}
 	}
 
-	return hoveredObjects;
+	return bestCard;
 }
 
-TaskID CombatView::GenerateMoveCardTask(ObjectID cardID, glm::vec3 targetPosition, glm::vec3 targetScale, float speed, float(*easingFunction)(float))
+TaskID CombatView::GenerateMoveCardTask(CardModel * actor, glm::vec3 targetPosition, glm::vec3 targetScale, float speed, float(*easingFunction)(float))
 {
-	auto & card = m_cards.at(cardID);
-	glm::vec3 startingPosition = card.GetPosition();
-	glm::vec3 startingScale = card.GetScale();
+	glm::vec3 startingPosition = actor->GetPosition();
+	glm::vec3 startingScale    = actor->GetScale();
 
-	return m_taskManager.RegisterTask([=, this](TaskID ID, double progress, double deltaTime) -> TaskResult
+	return m_taskManager.RegisterTask([
+		this,
+		actor,
+    	startingPosition,
+    	startingScale,
+    	targetPosition,
+    	targetScale,
+    	speed,
+    	easingFunction
+	](TaskID ID, double progress, double deltaTime) -> TaskResult
 	{
-		progress = progress * speed;
-		auto & card = m_cards.at(cardID);
+		progress *= speed;
 
 		float curve = easingFunction(std::min(progress, 1.0));
 		glm::vec3 currentPosition = glm::mix(startingPosition, targetPosition, curve);
 		glm::vec3 currentScale = glm::mix(startingScale, targetScale, curve);
-		card.SetPosition(currentPosition);
-		card.SetScale(currentScale);
+		actor->SetPosition(currentPosition);
+		actor->SetScale(currentScale);
 
 		if(progress >= 1.0)
 		{
+			actor->SetPosition(targetPosition);
+			actor->SetScale(targetScale);
 			return TaskResult::Return;
 		}
 
@@ -473,13 +592,9 @@ TaskID CombatView::GenerateMoveCardTask(ObjectID cardID, glm::vec3 targetPositio
 	});
 }
 
-void CombatView::GenerateTooltip(ObjectID cardID)
-{
-	if (m_activeTooltips.find(cardID) != m_activeTooltips.end())
-		return;
 
-
-	std::string description =
+/*
+std::string description =
 	"{S:ITALIC, C:RED   }If "
 	"{S:BOLD  , C:ORANGE}you "
 	"{S:NORMAL, C:YELLOW}see "
@@ -490,218 +605,131 @@ void CombatView::GenerateTooltip(ObjectID cardID)
 	"{S:NORMAL, C:YELLOW}bug.";
 
 	std::string name = "{C:BLUE, S:ITALIC}Placeholder";
+*/
 
-	if (m_cardDescriptions.find(cardID) != m_cardDescriptions.end())
-	{
-		name = "{C:BLUE, S:ITALIC}" + m_cardDescriptions.at(cardID).first;
-		description = m_cardDescriptions.at(cardID).second;
-	}
-
-	m_activeTooltips.emplace(cardID, std::make_unique<ToolTipModel>(m_renderer));
-	m_activeTooltips.at(cardID)->SetText(name, description);
-}
-
-void CombatView::DestroyTooltip(ObjectID cardID)
+void CombatView::StartHoverCard(CardModel * actor)
 {
-	if (cardID == InvalidObject || m_activeTooltips.find(cardID) == m_activeTooltips.end())
+	if (m_hand.GetIndex(actor) == static_cast<size_t>(-1))
 		return;
 
-	m_activeTooltips.at(cardID)->Destroy();
-	m_activeTooltips.erase(cardID);
-}
-
-void CombatView::HoverCard()
-{
-	// Hover card is valid and different from last frame
-	if(m_hoveredCardID != InvalidObject && m_hoveredCardID != m_lastHoveredCardID && m_hoveredCardID != m_draggedCardID && m_draggedCardID == InvalidObject)
+	m_hand.SetHover(actor);
+	
+	for(auto & [actor, index] : m_hand)
 	{
-		m_hand.SetHover(m_hoveredCardID);
-		TaskID taskID;
-		for(auto & [cardID, index] : m_hand)
-		{
-			taskID = GenerateMoveCardTask(cardID, m_hand.GetCardPos(cardID), m_hand.GetCardSize(cardID), 5.0f, easeInOutCirc);
-			m_taskQueue.PushCancel(cardID, taskID);
-		}
+		auto task = GenerateMoveCardTask(actor, m_hand.GetCardPos(actor), m_hand.GetCardSize(actor), 5.0f, easeInOutCirc);
+		m_taskQueue.PushCancel(reinterpret_cast<uint64_t>(actor), task);
 	}
 }
 
-void CombatView::UnhoverCard()
+void CombatView::UpdateHover(CardModel * actor, HoverType hoverType, double delta)
 {
-	if(m_hoveredCardID == InvalidObject && m_hoveredCardID != m_lastHoveredCardID && m_draggedCardID == InvalidObject)
+	// ugly as fuck but hey
+	if (hoverType == HoverType::Short)
 	{
-		m_hand.SetHover(InvalidObject);
 
-		for(auto & [cardID, index] : m_hand)
-		{
-			auto taskID = GenerateMoveCardTask(cardID, m_hand.GetCardPos(cardID), m_hand.GetCardSize(cardID), 5.0f, easeInOutCirc);
-			m_taskQueue.PushCancel(cardID, taskID);
-		}
+	}
+	else if (hoverType == HoverType::Medium)
+	{
+		actor->OnHoverStart();
+	}
+	else if (hoverType == HoverType::Long)
+	{
+
 	}
 }
 
-void CombatView::DragCard()
+void CombatView::StopHoverCard(CardModel * actor)
 {
-	if(m_draggedCardID != InvalidObject && m_draggedCardID != m_lastDraggedCardID)
+	m_hand.SetHover(nullptr);
+	actor->OnHoverStop();
+	
+	for(auto & [actor, index] : m_hand)
 	{
-		m_hand.SetDrag(m_draggedCardID);
-		m_dragTask = m_taskManager.RegisterTask(
-			[&, this, cardID = m_draggedCardID](TaskID ID, double progress, double deltaTime) -> TaskResult
-			{
-				auto & card = m_cards.at(cardID);
-
-				glm::vec2 cardPos  = card.GetPosition();
-
-				double mouseX, mouseY; InputManager::getInstance().getMousePos(mouseX, mouseY);
-				mouseY = m_context->GetViewport().height - mouseY;
-				glm::vec2 mousePos {mouseX +(m_cardSize / 2), mouseY +(m_cardSize / 2)};
-
-				float deltaX = std::abs(cardPos.x - mousePos.x);
-				float deltaY = std::abs(cardPos.y - mousePos.y);
-				float distance = std::sqrt(deltaX * deltaX + deltaY * deltaY);
-				
-				float const radius = 0.001f;
-				float const speed  = 2.0f;
-
-				if (distance > radius)
-				{
-					float const trackingSpeed = 12.0f; 
-					float factor = 1.0f - std::exp(-trackingSpeed * static_cast<float>(deltaTime));
-					
-					glm::vec3 targetPosition{mousePos.x, mousePos.y, 1.0f};
-					glm::vec3 currentPosition = glm::mix(card.GetPosition(), targetPosition, factor);
-					
-					card.SetPosition(currentPosition);
-				}
-				else
-				{
-					card.SetPosition({mousePos.x, mousePos.y, 1.0f});
-				}
-
-				return TaskResult::Yield;
-			}
-		);
-		m_taskQueue.PushCancel(m_draggedCardID, m_dragTask);
-
-		for(auto & [cardID, index] : m_hand)
-		{
-			if(cardID == m_draggedCardID) continue;
-
-			auto taskID = GenerateMoveCardTask(cardID, m_hand.GetCardPos(cardID), m_hand.GetCardSize(cardID), 2.0f, easeInOutCirc);
-			m_taskQueue.PushCancel(cardID, taskID);
-		}
+		auto task = GenerateMoveCardTask(actor, m_hand.GetCardPos(actor), m_hand.GetCardSize(actor), 5.0f, easeInOutCirc);
+		m_taskQueue.PushCancel(reinterpret_cast<uint64_t>(actor), task);
 	}
 }
 
-void CombatView::DropCard(bool inPlayArea)
+void CombatView::StartDraggingCard(CardModel * actor)
 {
-	if(m_draggedCardID == InvalidObject && m_draggedCardID != m_lastDraggedCardID)
-	{
-		m_taskManager.StopTask(m_dragTask);
-
-		m_hand.SetDrag(InvalidObject);
-		m_canDrag = false;
-
-		if (!inPlayArea)
-		{		
-			TaskID lastTaskID;
-			for(auto & [cardID, index] : m_hand)
-			{
-				lastTaskID = GenerateMoveCardTask(cardID, m_hand.GetCardPos(cardID), m_hand.GetCardSize(cardID), 3.0f, easeInOutCirc);
-				m_taskQueue.PushCancel(cardID, lastTaskID);
-			}
-
-			TaskID switchBackStatesTask = m_taskManager.RegisterTask([this](TaskID ID, double progress, double deltaTime) -> TaskResult
-			{
-				m_canHover = true;
-				m_canDrag  = true;
-				m_hoveredCardID = InvalidObject;
-				m_draggedCardID = InvalidObject;
-
-				return TaskResult::Return;
-			});
-
-			m_taskManager.StartTaskAfter(switchBackStatesTask, lastTaskID);
-		}
-	}
-}
-
-void CombatView::PlaceCardOnTable(ObjectID cardID)
-{
-	if (m_cards.find(cardID) == m_cards.end())
+	if (m_hand.GetIndex(actor) == static_cast<size_t>(-1))
 		return;
 
-	m_hand.RemoveCard(cardID);
-	m_table.AddCard(cardID);
-
-	RearangeTableCards();
-}
-
-void CombatView::DrawCardsToTable(std::vector<ObjectID> cards)
-{
-	for (auto cardID : cards)
+	m_hand.SetDrag(m_cardDraggedCurrent);
+	
+	for(auto & [actorB, index] : m_hand)
 	{
-		if (m_cards.find(cardID) == m_cards.end())
-			continue;
+		if(actorB == actor) continue;
 
-		m_table.AddCard(cardID);
-	}
-
-	RearangeTableCards();
-}
-
-void CombatView::RearangeTableCards()
-{
-	for (auto & [cardID, index] : m_table)
-	{
-		auto task = GenerateMoveCardTask(cardID, m_table.GetPos(cardID), m_table.GetScale(cardID), 1.0, easeInOutCirc);
-		m_taskQueue.PushCancel(cardID, task);
+		auto task = GenerateMoveCardTask(actorB, m_hand.GetCardPos(actorB), m_hand.GetCardSize(actorB), 2.0f, easeInOutCirc);
+		m_taskQueue.PushCancel(reinterpret_cast<uint64_t>(actorB), task);
 	}
 }
 
-void CombatView::EnableUserInput()
+void CombatView::DragCard(CardModel * actor, glm::vec2 mouse, double deltaTime)
 {
-	m_canInput = true;
-}
+	glm::vec2 cardPos = actor->GetPosition();
+	glm::vec2 mousePos {mouse.x +(m_cardSize / 2), mouse.y +(m_cardSize / 2)};
 
-void CombatView::DisableUserInput()
-{
-	m_canInput = false;
-}
+	float deltaX = std::abs(cardPos.x - mousePos.x);
+	float deltaY = std::abs(cardPos.y - mousePos.y);
+	float distance = std::sqrt(deltaX * deltaX + deltaY * deltaY);
+	
+	float const radius = 0.001f;
+	float const speed  = 2.0f;
 
-void CombatView::DisplayTurnNumber(int turnCount)
-{
-	m_turnDisplay->SetText("{S:BOLD,C:WHITE} Beginning Turn " + turnCount, 44);
-
-	float x = (m_context->GetViewport().width - m_turnDisplay->GetWidth()) / 2.0f;
-	float y = (m_context->GetViewport().height - m_turnDisplay->GetHeight()) / 2.0f;
-	glm::vec3 startingPosition {x, 2000.0f, 3.01f};
-	glm::vec3 intermediatePosition {x, y, 3.01f};
-	glm::vec3 targetPosition {x, -2000.0f, 3.01f};
-
-	auto taskID = m_taskManager.RegisterTask([=, this](TaskID task, double progress, double deltaTime) -> TaskResult
+	if (distance > radius)
 	{
-		progress *= 0.25f;
-
-		float curve = easeInOutCirc(std::min(progress, 1.0));
+		float const trackingSpeed = 12.0f; 
+		float factor = 1.0f - std::exp(-trackingSpeed * static_cast<float>(deltaTime));
 		
-		if (progress < 0.45f)
-		{
-			glm::vec3 currentPosition = glm::mix(startingPosition, intermediatePosition, curve);
-			m_turnDisplay->SetPosition(currentPosition);
-		}
-		else if (progress < 1.0f && progress > 0.55)
-		{
-			glm::vec3 currentPosition = glm::mix(intermediatePosition, targetPosition, curve);
-			m_turnDisplay->SetPosition(currentPosition);
-		}
-		else if (progress >= 1.0f)
-		{
-			m_turnDisplay->SetPosition(targetPosition);
-			return TaskResult::Return;
-		}
+		glm::vec3 targetPosition{mousePos.x, mousePos.y, 1.0f};
+		glm::vec3 currentPosition = glm::mix(actor->GetPosition(), targetPosition, factor);
+		
+		actor->SetPosition(currentPosition);
+	}
+	else
+	{
+		actor->SetPosition({mousePos.x, mousePos.y, 1.0f});
+	}	
+}
 
-		return TaskResult::Yield;
-	});
+void CombatView::DropCard(CardModel * actor, bool inPlayArea)
+{
+	m_hand.SetDrag(nullptr);
 
-	m_taskManager.StartTask(taskID, 1.03f);
+	if (!inPlayArea)
+	{
+		for(auto & [actor, index] : m_hand)
+		{
+			auto task = GenerateMoveCardTask(actor, m_hand.GetCardPos(actor), m_hand.GetCardSize(actor), 3.0f, easeInOutCirc);
+			m_taskQueue.PushCancel(reinterpret_cast<uint64_t>(actor), task);
+		}
+	}
+	else
+		m_subscriber->OnCardDropInPlayArea(actor);
+}
+
+TaskID CombatView::RearangeTableCards()
+{
+	TaskID task;
+	for (auto & [actor, index] : m_table)
+	{
+		task = GenerateMoveCardTask(actor, m_table.GetPos(actor), m_table.GetScale(), 1.0, easeInOutCirc);
+		m_taskQueue.PushCancel(reinterpret_cast<uint64_t>(actor), task);
+	}
+
+	return task;
+}
+
+TaskID CombatView::RearangeHandCards()
+{
+	TaskID task;
+	for (auto [actor, index] : m_hand)
+	{
+		task = GenerateMoveCardTask(actor, m_hand.GetCardPos(actor), m_hand.GetCardSize(actor), 5.0, easeInOutCirc);
+		m_taskQueue.PushCancel(reinterpret_cast<uint64_t>(actor), task);
+	}
+	
+	return task;
 }

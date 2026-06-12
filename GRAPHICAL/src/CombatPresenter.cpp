@@ -5,15 +5,10 @@
 
 using namespace TLOT;
 
-void CombatPresenter::PreparePlayerTurn()
-{
-	
-}
-
 CombatPresenter::CombatPresenter(TLOT::RenderContext * context, TLOT::Renderer * renderer, SceneInspector * inspector)
 {
-	m_model = std::make_unique<CombatModel>(this);
-	m_view  = std::make_unique<CombatView> (this, context, renderer, inspector);
+	m_model = std::make_unique<CombatModel> (this);
+	m_view  = std::make_unique<CombatView>  (this, context, renderer, inspector);
 }
 
 void CombatPresenter::Init()
@@ -32,24 +27,33 @@ void CombatPresenter::Render()
 }
 
 void CombatPresenter::Begin(CombatParams params)
-{
-	
+{	
 	for (auto card : params.playerCards)
 	{
-		auto cardID = m_nextID++;
-		
-		m_model->RegisterCard(cardID, card);
-		m_view->RegisterCard(cardID, card->GetSuit(), card->GetValue(), m_model->GetCardName(cardID), m_model->GetCardDescription(cardID));
-		//m_cardActorTable.emplace(m_nextID++, CardModel{m_renderer, card.GetSuit(), card.GetValue()});
+		m_model->RegisterPlayerCard(card);
+		auto actor = m_view->RegisterCard(card);
+
+		m_cardToActor[card]  = actor;
+		m_actorToCard[actor] = card;
+	}
+
+	for (auto card : params.enemyCards)
+	{
+		m_model->RegisterEnemyCard(card);
+		auto actor = m_view->RegisterCard(card);
+
+		m_cardToActor[card]  = actor;
+		m_actorToCard[actor] = card;
 	}
 	
 	m_view->Init();
 	m_model->Init();
 }
 
-void CombatPresenter::OnCardDropInPlayArea(ObjectID card)
+void CombatPresenter::OnCardDropInPlayArea(CardModel * actor)
 {
-	m_model->PlayCard(card);
+	auto card = Convert(actor);
+	if (card) m_model->PlayCard(card);
 }
 
 void CombatPresenter::DebugDrawCard()
@@ -57,29 +61,47 @@ void CombatPresenter::DebugDrawCard()
 	m_model->DrawUntilHandFull();
 }
 
-ObjectID CombatPresenter::GenerateObject()
-{
-	return m_nextID++;
-}
-
 void CombatPresenter::OnMessage(std::string const message)
 {
-	Logger::log(LogLevel::Info, "Message : {}", message);
+	Logger::log(LogLevel::Info, "[CombatModel]: {}", message);
 }
 
-void CombatPresenter::OnDiscardToDrawPile(std::vector<ObjectID> cards)
+void CombatPresenter::OnCardsDrawnToHand(std::vector<Card *> cards)
 {
-
+	m_view->DrawCardsToHand(Convert(cards));
 }
 
-void CombatPresenter::OnCardsDrawn(std::vector<ObjectID> cards)
+void CombatPresenter::OnCardsDrawnToTable(std::vector<Card *> cards)
 {
-	m_view->DrawCards(cards);
+	m_view->DrawCardsToTable(Convert(cards));
 }
 
-void CombatPresenter::OnCardsDiscarded(std::vector<ObjectID> cards)
+void CombatPresenter::OnCardsDiscarded(std::vector<Card *> cards)
 {
-	m_view->DiscardCards(cards);
+	m_view->DiscardCards(Convert(cards));
+}
+
+void CombatPresenter::OnCardsCaptured(std::vector<Card *> cards)
+{
+	m_view->CaptureCards(Convert(cards));
+}
+
+void CombatPresenter::OnCardUpdate(Card * card)
+{
+	auto actor = Convert(card);
+	if (actor) m_view->UpdateCard(actor, card);
+}
+
+void CombatPresenter::OnCardPlacedOnTable(Card * card)
+{
+	auto actor = Convert(card);
+	if (actor) m_view->PlaceCardOnTable(actor);
+}
+
+void CombatPresenter::OnPlayerBeginTurn(int turnCount)
+{
+	m_view->EnableUserInput();
+	m_view->DisplayTurnNumber(turnCount);
 }
 
 void CombatPresenter::OnPlayerHealthChange(int newHP, int newMaxHP)
@@ -87,46 +109,9 @@ void CombatPresenter::OnPlayerHealthChange(int newHP, int newMaxHP)
 	m_view->UpdatePlayerHealth(newHP, newMaxHP);
 }
 
-void CombatPresenter::OnEnemyHealthChange(int newHP, int newMaxHP)
-{
-	m_view->UpdateEnemyHealth(newHP, newMaxHP);
-}
-
 void CombatPresenter::OnPlayerDeath()
 {
-	//exit(-1);
-}
 
-void CombatPresenter::OnEnemyDeath()
-{
-	m_state = GameState::Shop;
-}
-
-void CombatPresenter::OnCardUpdate(ObjectID cardID, CardValue value, Suit suit, std::string name, std::string description)
-{
-	m_view->UpdateCardModel(cardID, value, suit);
-	m_view->UpdateCardDescription(cardID, name, description);
-}
-
-void CombatPresenter::OnCardPlacedOnTable(ObjectID cardID)
-{
-	m_view->PlaceCardOnTable(cardID);
-}
-
-void CombatPresenter::OnCardDrawToTable(std::vector<ObjectID> cards)
-{
-	m_view->DrawCardsToTable(cards);
-}
-
-void CombatPresenter::OnCardsCaptured(std::vector<ObjectID> cards)
-{
-	m_view->CaptureCards(cards);
-}
-
-void CombatPresenter::OnPlayerBeginTurn(int turnCount)
-{
-	m_view->EnableUserInput();
-	m_view->DisplayTurnNumber(turnCount);
 }
 
 void CombatPresenter::OnPlayerEndTurn()
@@ -140,7 +125,59 @@ void CombatPresenter::OnEnemyBeginTurn()
 
 }
 
+void CombatPresenter::OnEnemyHealthChange(int newHP, int newMaxHP)
+{
+	m_view->UpdateEnemyHealth(newHP, newMaxHP);
+}
+
+void CombatPresenter::OnEnemyDeath()
+{
+
+}
+
 void CombatPresenter::OnEnemyEndTurn()
 {
 	m_model->BeginPlayerTurn();
+}
+
+Card * CombatPresenter::Convert(CardModel * actor)
+{
+	auto it = m_actorToCard.find(actor);
+	if (it == m_actorToCard.end())
+		return nullptr;
+
+	return it->second;
+}
+
+CardModel * CombatPresenter::Convert(Card * card)
+{
+	auto it = m_cardToActor.find(card);
+	if (it == m_cardToActor.end())
+		return nullptr;
+
+	return it->second;
+}
+
+std::vector<Card *> CombatPresenter::Convert(std::vector<CardModel *> actors)
+{
+	std::vector<Card *> converted;
+	for (auto actor : actors)
+	{
+		auto card = Convert(actor);
+		if (card) converted.emplace_back(card);
+	}
+
+	return converted;
+}
+
+std::vector<CardModel *> CombatPresenter::Convert(std::vector<Card *> cards)
+{
+	std::vector<CardModel *> converted;
+	for (auto card : cards)
+	{
+		auto actor = Convert(card);
+		if (actor) converted.emplace_back(actor);
+	}
+
+	return converted;
 }
